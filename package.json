@@ -1,0 +1,48 @@
+{
+    "name": "fluid-simulation",
+    "version": "0.1.0",
+    "private": true,
+    "engines": {
+        "yarn": "1.x"
+    },
+    "dependencies": {
+        "@material-ui/core": "^4.10.0",
+        "@material-ui/icons": "^4.9.1",
+        "@material-ui/styles": "^4.10.0",
+        "react": "^16.13.1",
+        "react-dom": "^16.13.1",
+        "react-scripts": "^3.4.1"
+    },
+    "devDependencies": {
+        "@rescripts/cli": "^0.0.11",
+        "@rescripts/rescript-env": "^0.0.10",
+        "@rescripts/utilities": "^0.0.7",
+        "@testing-library/jest-dom": "^4.2.4",
+        "@testing-library/react": "^9.3.2",
+        "@testing-library/user-event": "^7.1.2",
+        "glslify-loader": "^2.0.0",
+        "raw-loader": "^4.0.1"
+    },
+    "scripts": {
+        "dev": "rescripts start",
+        "start": "serve -s build",
+        "build": "rescripts build",
+        "test": "rescripts test",
+        "heroku-postbuild": "npm run build"
+    },
+    "eslintConfig": {
+        "extends": "react-app"
+    },
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    }
+}
