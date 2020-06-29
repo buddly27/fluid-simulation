@@ -2,12 +2,15 @@ import React from "react";
 import AppBar from "@material-ui/core/AppBar";
 import Typography from "@material-ui/core/Typography";
 import Toolbar from "@material-ui/core/Toolbar";
+import IconButton from "@material-ui/core/IconButton";
+import MenuIcon from "@material-ui/icons/Menu";
 import Canvas from "../Canvas/index.js";
 import AppDrawer from "../AppDrawer/index.js";
 
 
 export default function App() {
     const [state, setState] = React.useState({
+        drawerOpened: true,
         quality: "high",
         simResolution: 128,
         densityDiffusion: 1.0,
@@ -25,12 +28,26 @@ export default function App() {
         sunraysWeight: 1
     });
 
-    const drawerWidth = 300;
+    const {drawerOpened} = state;
 
     return (
         <div>
             <AppBar position="fixed">
                 <Toolbar>
+                    <IconButton
+                        color="inherit"
+                        aria-label="open drawer"
+                        onClick={
+                            () =>
+                                setState(prevState => ({
+                                    ...prevState, drawerOpened: !drawerOpened
+                                }))
+                        }
+                        edge="start"
+                    >
+                        <MenuIcon/>
+                    </IconButton>
+
                     <Typography variant="h6" noWrap>
                         Fluid Simulation
                     </Typography>
@@ -38,7 +55,7 @@ export default function App() {
             </AppBar>
 
             <AppDrawer
-                width={drawerWidth}
+                open={drawerOpened}
                 settings={state}
                 onSettingChange={
                     (key, value) =>
@@ -46,7 +63,9 @@ export default function App() {
                 }
             />
 
-            <Canvas paddingLeft={drawerWidth}/>
+            <Canvas
+                settings={state}
+            />
         </div>
     );
 }

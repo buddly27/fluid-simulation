@@ -17,11 +17,11 @@ import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 
 const useStyles = makeStyles((theme) => ({
     drawer: {
-        width: props => props.width,
+        width: 300,
         flexShrink: 0,
     },
     drawerPaper: {
-        width: props => props.width,
+        width: 300,
     },
     heading: {
         fontSize: theme.typography.pxToRem(15),
@@ -35,7 +35,7 @@ const useStyles = makeStyles((theme) => ({
 
 export default function AppDrawer(props) {
     const classes = useStyles(props);
-    const {settings, onSettingChange} = props;
+    const {open, settings, onSettingChange} = props;
     const {
         quality,
         simResolution,
@@ -58,8 +58,8 @@ export default function AppDrawer(props) {
         <Drawer
             className={classes.drawer}
             classes={{paper: classes.drawerPaper}}
-            variant="permanent"
-            open
+            variant="persistent"
+            open={open}
         >
             <Toolbar/>
 
