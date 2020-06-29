@@ -35,23 +35,24 @@ const useStyles = makeStyles((theme) => ({
 
 export default function AppDrawer(props) {
     const classes = useStyles(props);
+    const {settings, onSettingChange} = props;
     const {
         quality,
-        resolution,
+        simResolution,
         densityDiffusion,
         velocityDiffusion,
         pressure,
         vorticity,
         splatRadius,
-        shading,
-        colorful,
-        paused,
+        shadingEnabled,
+        colorEnabled,
+        animationPaused,
         bloomEnabled,
         bloomIntensity,
         bloomThreshold,
         sunraysEnabled,
         sunraysWeight
-    } = props;
+    } = settings;
 
     return (
         <Drawer
@@ -82,6 +83,11 @@ export default function AppDrawer(props) {
                                         id: "quality",
                                     }}
                                     value={quality}
+                                    onChange={
+                                        (event) => onSettingChange(
+                                            "quality", event.target.value
+                                        )
+                                    }
                                 >
                                     <option value="high">High</option>
                                     <option value="medium">Medium</option>
@@ -100,7 +106,13 @@ export default function AppDrawer(props) {
                                         name: "sim-resolution",
                                         id: "sim-resolution",
                                     }}
-                                    value={resolution}
+                                    value={simResolution}
+                                    onChange={
+                                        (event) => onSettingChange(
+                                            "simResolution", event.target.value
+                                        )
+                                    }
+
                                 >
                                     <option value={32}>32</option>
                                     <option value={64}>64</option>
@@ -115,6 +127,11 @@ export default function AppDrawer(props) {
                                 </Typography>
                                 <Slider
                                     value={densityDiffusion}
+                                    onChange={
+                                        (_, value) => onSettingChange(
+                                            "densityDiffusion", value
+                                        )
+                                    }
                                     min={0}
                                     step={0.1}
                                     max={4}
@@ -132,6 +149,11 @@ export default function AppDrawer(props) {
                                 </Typography>
                                 <Slider
                                     value={velocityDiffusion}
+                                    onChange={
+                                        (_, value) => onSettingChange(
+                                            "velocityDiffusion", value
+                                        )
+                                    }
                                     min={0}
                                     step={0.1}
                                     max={4}
@@ -146,6 +168,11 @@ export default function AppDrawer(props) {
                                 </Typography>
                                 <Slider
                                     value={pressure}
+                                    onChange={
+                                        (_, value) => onSettingChange(
+                                            "pressure", value
+                                        )
+                                    }
                                     min={0}
                                     step={0.1}
                                     max={1}
@@ -160,6 +187,11 @@ export default function AppDrawer(props) {
                                 </Typography>
                                 <Slider
                                     value={vorticity}
+                                    onChange={
+                                        (_, value) => onSettingChange(
+                                            "vorticity", value
+                                        )
+                                    }
                                     min={0}
                                     step={1}
                                     max={50}
@@ -174,6 +206,11 @@ export default function AppDrawer(props) {
                                 </Typography>
                                 <Slider
                                     value={splatRadius}
+                                    onChange={
+                                        (_, value) => onSettingChange(
+                                            "splatRadius", value
+                                        )
+                                    }
                                     min={0.01}
                                     step={0.1}
                                     max={1}
@@ -186,7 +223,13 @@ export default function AppDrawer(props) {
                                 <FormControlLabel
                                     control={
                                         <Switch
-                                            checked={shading}
+                                            checked={shadingEnabled}
+                                            onChange={
+                                                (event) => onSettingChange(
+                                                    "shadingEnabled",
+                                                    event.target.checked
+                                                )
+                                            }
                                             name="shading"
                                         />
                                     }
@@ -195,7 +238,13 @@ export default function AppDrawer(props) {
                                 <FormControlLabel
                                     control={
                                         <Switch
-                                            checked={colorful}
+                                            checked={colorEnabled}
+                                            onChange={
+                                                (event) => onSettingChange(
+                                                    "colorEnabled",
+                                                    event.target.checked
+                                                )
+                                            }
                                             name="colorful"
                                         />
                                     }
@@ -204,7 +253,13 @@ export default function AppDrawer(props) {
                                 <FormControlLabel
                                     control={
                                         <Switch
-                                            checked={paused}
+                                            checked={animationPaused}
+                                            onChange={
+                                                (event) => onSettingChange(
+                                                    "animationPaused",
+                                                    event.target.checked
+                                                )
+                                            }
                                             name="paused"
                                         />
                                     }
@@ -229,6 +284,12 @@ export default function AppDrawer(props) {
                                     control={
                                         <Switch
                                             checked={bloomEnabled}
+                                            onChange={
+                                                (event) => onSettingChange(
+                                                    "bloomEnabled",
+                                                    event.target.checked
+                                                )
+                                            }
                                             name="bloom-enabled"
                                         />
                                     }
@@ -242,6 +303,11 @@ export default function AppDrawer(props) {
                                 </Typography>
                                 <Slider
                                     value={bloomIntensity}
+                                    onChange={
+                                        (_, value) => onSettingChange(
+                                            "bloomIntensity", value
+                                        )
+                                    }
                                     min={0.1}
                                     step={0.1}
                                     max={2.0}
@@ -256,6 +322,11 @@ export default function AppDrawer(props) {
                                 </Typography>
                                 <Slider
                                     value={bloomThreshold}
+                                    onChange={
+                                        (_, value) => onSettingChange(
+                                            "bloomThreshold", value
+                                        )
+                                    }
                                     min={0}
                                     step={0.1}
                                     max={1.0}
@@ -281,6 +352,12 @@ export default function AppDrawer(props) {
                                     control={
                                         <Switch
                                             checked={sunraysEnabled}
+                                            onChange={
+                                                (event) => onSettingChange(
+                                                    "sunraysEnabled",
+                                                    event.target.checked
+                                                )
+                                            }
                                             name="sunrays-enabled"
                                         />
                                     }
@@ -294,6 +371,11 @@ export default function AppDrawer(props) {
                                 </Typography>
                                 <Slider
                                     value={sunraysWeight}
+                                    onChange={
+                                        (_, value) => onSettingChange(
+                                            "sunraysWeight", value
+                                        )
+                                    }
                                     min={0.3}
                                     step={0.1}
                                     max={2.0}

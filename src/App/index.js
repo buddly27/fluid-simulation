@@ -9,39 +9,21 @@ import AppDrawer from "../AppDrawer/index.js";
 export default function App() {
     const [state, setState] = React.useState({
         quality: "high",
-        resolution: 128,
+        simResolution: 128,
         densityDiffusion: 1.0,
         velocityDiffusion: 0.2,
         pressure: 0.8,
         vorticity: 30.0,
         splatRadius: 0.25,
-        shading: true,
-        colorful: true,
-        paused: false,
+        shadingEnabled: true,
+        colorEnabled: true,
+        animationPaused: false,
         bloomEnabled: true,
         bloomIntensity: 0.8,
         bloomThreshold: 0.6,
         sunraysEnabled: true,
         sunraysWeight: 1
     });
-
-    const {
-        quality,
-        resolution,
-        densityDiffusion,
-        velocityDiffusion,
-        pressure,
-        vorticity,
-        splatRadius,
-        shading,
-        colorful,
-        paused,
-        bloomEnabled,
-        bloomIntensity,
-        bloomThreshold,
-        sunraysEnabled,
-        sunraysWeight
-    } = state;
 
     const drawerWidth = 300;
 
@@ -57,21 +39,11 @@ export default function App() {
 
             <AppDrawer
                 width={drawerWidth}
-                quality={quality}
-                resolution={resolution}
-                densityDiffusion={densityDiffusion}
-                velocityDiffusion={velocityDiffusion}
-                pressure={pressure}
-                vorticity={vorticity}
-                splatRadius={splatRadius}
-                shading={shading}
-                colorful={colorful}
-                paused={paused}
-                bloomEnabled={bloomEnabled}
-                bloomIntensity={bloomIntensity}
-                bloomThreshold={bloomThreshold}
-                sunraysEnabled={sunraysEnabled}
-                sunraysWeight={sunraysWeight}
+                settings={state}
+                onSettingChange={
+                    (key, value) =>
+                        setState(prevState => ({...prevState, [key]: value}))
+                }
             />
 
             <Canvas paddingLeft={drawerWidth}/>
