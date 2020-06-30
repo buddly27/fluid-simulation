@@ -37,7 +37,7 @@ export default function AppDrawer(props) {
     const classes = useStyles(props);
     const {open, settings, onSettingChange} = props;
     const {
-        quality,
+        dyeResolution,
         simResolution,
         densityDiffusion,
         velocityDiffusion,
@@ -82,17 +82,17 @@ export default function AppDrawer(props) {
                                         name: "quality",
                                         id: "quality",
                                     }}
-                                    value={quality}
+                                    value={dyeResolution}
                                     onChange={
                                         (event) => onSettingChange(
-                                            "quality", event.target.value
+                                            "dyeResolution", event.target.value
                                         )
                                     }
                                 >
-                                    <option value="high">High</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="low">Low</option>
-                                    <option value="very-low">Very Low</option>
+                                    <option value={1024}>High</option>
+                                    <option value={512}>Medium</option>
+                                    <option value={256}>Low</option>
+                                    <option value={128}>Very Low</option>
                                 </NativeSelect>
                             </FormControl>
 
