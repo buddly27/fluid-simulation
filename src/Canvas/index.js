@@ -21,6 +21,7 @@ import pressureShader from "./shader/pressure.frag";
 import gradientSubtractShader from "./shader/gradient_substract.frag";
 import displayShaderSource from "./shader/display.frag";
 import LDR_LLL1_0 from "./texture/LDR_LLL1_0.png";
+import * as utility from "./utility.js"
 
 
 const useStyles = makeStyles(() => ({
@@ -54,22 +55,33 @@ export default function Canvas(props) {
         // pressure,
         // vorticity,
         // splatRadius,
-        // shadingEnabled,
+        shadingEnabled,
         // colorEnabled,
         // animationPaused,
-        // bloomEnabled,
+        bloomEnabled,
         // bloomIntensity,
         // bloomThreshold,
-        // sunraysEnabled,
+        sunraysEnabled,
         // sunraysWeight
     } = settings;
 
     // Initialize GL context.
     const onInitiate = React.useCallback(() => {
-        const state = initialize(canvas, dyeResolution, simResolution);
+        const state = initialize(
+            canvas,
+            dyeResolution,
+            simResolution,
+            shadingEnabled,
+            bloomEnabled,
+            sunraysEnabled,
+        );
+
         setState(prevState => ({...prevState, ...state}));
 
-    }, [canvas, dyeResolution, simResolution]);
+    }, [
+        canvas, dyeResolution, simResolution, shadingEnabled, bloomEnabled,
+        sunraysEnabled
+    ]);
 
     // Render scene.
     const onRender = React.useCallback(() => {
@@ -102,7 +114,14 @@ export default function Canvas(props) {
 }
 
 
-const initialize = (canvas, dyeResolution, simResolution) => {
+const initialize = (
+    canvas,
+    dyeResolution,
+    simResolution,
+    shadingEnabled,
+    bloomEnabled,
+    sunraysEnabled,
+) => {
     const params = {
         alpha: true,
         depth: false,
@@ -158,7 +177,12 @@ const initialize = (canvas, dyeResolution, simResolution) => {
         supportLinearFiltering
     };
 
-    const shaders = initializeShaders(gl, supportLinearFiltering);
+    const shaders = initializeShaders(
+        gl, supportLinearFiltering,
+        shadingEnabled,
+        bloomEnabled,
+        sunraysEnabled,
+    );
     const texture = createTextureAsync(gl);
     const buffers = initFrameBuffers(gl, dyeResolution, simResolution, ext);
 
@@ -210,178 +234,50 @@ const supportRenderTextureFormat = (gl, internalFormat, format, type) => {
 };
 
 
-const initializeShaders = (gl, supportLinearFiltering) => {
-    let program;
-    const shaders = {};
+const initializeShaders = (
+    gl,
+    supportLinearFiltering,
+    shadingEnabled,
+    bloomEnabled,
+    sunraysEnabled,
+) => {
+    const materialKeywords = [];
 
-    program = createProgram(gl, blurVertexShader, blurShader);
-    shaders.blur = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, copyShader);
-    shaders.copy = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, clearShader);
-    shaders.clear = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, colorShader);
-    shaders.color = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, checkerboardShader);
-    shaders.checkerboard = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, bloomPrefilterShader);
-    shaders.bloomPrefilter = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, bloomBlurShader);
-    shaders.bloomBlur = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, bloomFinalShader);
-    shaders.bloomFinal = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, sunraysMaskShader);
-    shaders.sunraysMask = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, sunraysShader);
-    shaders.sunrays = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, splatShader);
-    shaders.splat = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(
-        gl, baseVertexShader, advectionShader,
-        supportLinearFiltering ? null : ["MANUAL_FILTERING"]
-    );
-    shaders.advection = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, divergenceShader);
-    shaders.divergence = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, curlShader);
-    shaders.curl = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, vorticityShader);
-    shaders.vorticity = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, pressureShader);
-    shaders.pressure = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(gl, baseVertexShader, gradientSubtractShader);
-    shaders.gradientSubtract = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    program = createProgram(
-        gl, baseVertexShader, displayShaderSource,
-        ["SHADING", "BLOOM", "SUNRAYS"]
-    );
-    shaders.display = {
-        program: program,
-        uniforms: getUniforms(gl, program)
-    };
-
-    return shaders;
-};
-
-
-const createProgram = (gl, vsSource, fsSource, keywords = null) => {
-    const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource, keywords);
-    const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource, keywords);
-
-    const shaderProgram = gl.createProgram();
-    gl.attachShader(shaderProgram, vertexShader);
-    gl.attachShader(shaderProgram, fragmentShader);
-    gl.linkProgram(shaderProgram);
-
-    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        throw gl.getProgramInfoLog(shaderProgram);
+    if (shadingEnabled) {
+        materialKeywords.push("SHADING");
+    }
+    if (bloomEnabled) {
+        materialKeywords.push("BLOOM");
+    }
+    if (sunraysEnabled) {
+        materialKeywords.push("SUNRAYS");
     }
 
-    return shaderProgram;
-};
-
-
-const loadShader = (gl, type, source, keywords = null) => {
-    const shader = gl.createShader(type);
-    let _source = source;
-
-    if (keywords != null) {
-        let keywordsString = "";
-        keywords.forEach(keyword => {
-            keywordsString += `#define ${keyword}\n`;
-        });
-        _source = keywordsString + source
-    }
-
-    gl.shaderSource(shader, _source);
-    gl.compileShader(shader);
-
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        throw gl.getShaderInfoLog(shader);
-    }
-
-    return shader;
-};
-
-
-const getUniforms = (gl, program) => {
-    const uniforms = [];
-    const uniformCount = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
-
-    for (let i = 0; i < uniformCount; i++) {
-        let uniformName = gl.getActiveUniform(program, i).name;
-        uniforms[uniformName] = gl.getUniformLocation(program, uniformName);
-    }
-
-    return uniforms;
+    return {
+        blur: new utility.Program(gl, blurVertexShader, blurShader),
+        copy: new utility.Program(gl, baseVertexShader, copyShader),
+        clear: new utility.Program(gl, baseVertexShader, clearShader),
+        color: new utility.Program(gl, baseVertexShader, colorShader),
+        checkerboard: new utility.Program(gl, baseVertexShader, checkerboardShader),
+        bloomPrefilter: new utility.Program(gl, baseVertexShader, bloomPrefilterShader),
+        bloomBlur: new utility.Program(gl, baseVertexShader, bloomBlurShader),
+        bloomFinal: new utility.Program(gl, baseVertexShader, bloomFinalShader),
+        sunraysMask: new utility.Program(gl, baseVertexShader, sunraysMaskShader),
+        sunrays: new utility.Program(gl, baseVertexShader, sunraysShader),
+        splat: new utility.Program(gl, baseVertexShader, splatShader),
+        advection: new utility.Program(
+            gl, baseVertexShader, advectionShader,
+            supportLinearFiltering ? null : ["MANUAL_FILTERING"]
+        ),
+        divergence: new utility.Program(gl, baseVertexShader, divergenceShader),
+        curl: new utility.Program(gl, baseVertexShader, curlShader),
+        vorticity: new utility.Program(gl, baseVertexShader, vorticityShader),
+        pressure: new utility.Program(gl, baseVertexShader, pressureShader),
+        gradientSubtract: new utility.Program(gl, baseVertexShader, gradientSubtractShader),
+        display: new utility.Material(
+            gl, baseVertexShader, displayShaderSource, materialKeywords
+        ),
+    };
 };
 
 
@@ -431,57 +327,28 @@ const initFrameBuffers = (gl, dyeResolution, simResolution, ext) => {
     const r = ext.formatR;
     const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
 
-    const buffers = {};
-
-    buffers.dye = createDoubleFBO(
-        gl,
-        _dyeResolution.width,
-        _dyeResolution.height,
-        rgba.internalFormat,
-        rgba.format,
-        texType,
-        filtering
-    );
-
-    buffers.velocity = createDoubleFBO(
-        gl,
-        _simResolution.width,
-        _simResolution.height,
-        rg.internalFormat,
-        rg.format,
-        texType,
-        filtering
-    );
-
-    buffers.divergence = createFBO(
-        gl,
-        _simResolution.width,
-        _simResolution.height,
-        r.internalFormat,
-        r.format,
-        texType,
-        gl.NEAREST
-    );
-
-    buffers.curl = createFBO(
-        gl,
-        _simResolution.width,
-        _simResolution.height,
-        r.internalFormat,
-        r.format,
-        texType,
-        gl.NEAREST
-    );
-
-    buffers.pressure = createDoubleFBO(
-        gl,
-        _simResolution.width,
-        _simResolution.height,
-        r.internalFormat,
-        r.format,
-        texType,
-        gl.NEAREST
-    );
+    const buffers = {
+        dye: new utility.DoubleFramebuffer(
+            gl, _dyeResolution.width, _dyeResolution.height,
+            rgba.internalFormat, rgba.format, texType, filtering
+        ),
+        velocity: new utility.DoubleFramebuffer(
+            gl, _simResolution.width, _simResolution.height,
+            rg.internalFormat, rg.format, texType, filtering
+        ),
+        divergence: new utility.Framebuffer(
+            gl, _simResolution.width, _simResolution.height,
+            r.internalFormat, r.format, texType, gl.NEAREST
+        ),
+        curl: new utility.Framebuffer(
+            gl, _simResolution.width, _simResolution.height,
+            r.internalFormat, r.format, texType, gl.NEAREST
+        ),
+        pressure: new utility.DoubleFramebuffer(
+            gl, _simResolution.width, _simResolution.height,
+            r.internalFormat, r.format, texType, gl.NEAREST
+        ),
+    };
 
     const bloomBuffers = initBloomFrameBuffers(gl, ext);
     const sunraysBuffers = initSunraysFrameBuffers(gl, ext);
@@ -490,27 +357,23 @@ const initFrameBuffers = (gl, dyeResolution, simResolution, ext) => {
 
 
 const initBloomFrameBuffers = (gl, ext) => {
-    const resolution = getResolution(256);
+    const resolution = getResolution(gl, 256);
     const iterations = 8;
 
     const texType = ext.halfFloatTexType;
     const rgba = ext.formatRGBA;
     const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
 
-    const buffers = {};
-
-    buffers.bloom = createFBO(
-        gl,
-        resolution.width,
-        resolution.height,
-        rgba.internalFormat,
-        rgba.format,
-        texType,
-        filtering
-    );
-
-    buffers.bloomFramebuffers = [];
-    buffers.bloomFramebuffers.length = 0;
+    const buffers = {
+        bloom: new utility.Framebuffer(
+            gl, resolution.width, resolution.height,
+            rgba.internalFormat,
+            rgba.format,
+            texType,
+            filtering
+        ),
+        bloomFrameBuffers: []
+    };
 
     for (let i = 0; i < iterations; i++) {
         const width = resolution.width >> (i + 1);
@@ -519,17 +382,12 @@ const initBloomFrameBuffers = (gl, ext) => {
         if (width < 2 || height < 2)
             break;
 
-        const fbo = createFBO(
-            gl,
-            width,
-            height,
-            rgba.internalFormat,
-            rgba.format,
-            texType,
-            filtering
+        const fbo = new utility.Framebuffer(
+            gl, width, height,
+            rgba.internalFormat, rgba.format, texType, filtering
         );
 
-        buffers.bloomFramebuffers.push(fbo);
+        buffers.bloomFrameBuffers.push(fbo);
     }
 
     return buffers
@@ -537,52 +395,26 @@ const initBloomFrameBuffers = (gl, ext) => {
 
 
 const initSunraysFrameBuffers = (gl, ext) => {
-    const resolution = getResolution(196);
+    const resolution = getResolution(gl, 196);
 
     const texType = ext.halfFloatTexType;
     const r = ext.formatR;
     const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
 
-    const buffers = {};
-
-    buffers.sunrays = createFBO(
-        gl,
-        resolution.width,
-        resolution.height,
-        r.internalFormat,
-        r.format,
-        texType,
-        filtering
-    );
-
-    buffers.sunraysTemp = createFBO(
-        gl,
-        resolution.width,
-        resolution.height,
-        r.internalFormat,
-        r.format,
-        texType,
-        filtering
-    );
-
-    return buffers
+    return {
+        sunrays: new utility.Framebuffer(
+            gl, resolution.width, resolution.height,
+            r.internalFormat, r.format, texType, filtering
+        ),
+        sunraysTemp: new utility.Framebuffer(
+            gl, resolution.width, resolution.height,
+            r.internalFormat, r.format, texType, filtering
+        )
+    };
 };
 
 
 const render = (gl) => {
-    resize(gl.canvas);
-};
-
-
-const resize = (canvas) => {
-    const dpr = window.devicePixelRatio || 1;
-    const width = Math.floor(canvas.clientWidth * dpr);
-    const height = Math.floor(canvas.clientHeight * dpr);
-
-    if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-    }
 };
 
 
@@ -600,74 +432,3 @@ function getResolution(gl, resolution) {
 
     return {width: min, height: max};
 }
-
-
-const createFBO = (gl, width, height, internalFormat, format, type, param) => {
-    gl.activeTexture(gl.TEXTURE0);
-
-    const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, param);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, param);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(
-        gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, null
-    );
-
-    const fbo = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0
-    );
-
-    gl.viewport(0, 0, width, height);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    const texelSizeX = 1.0 / width;
-    const texelSizeY = 1.0 / height;
-
-    return {
-        texture,
-        fbo,
-        width: width,
-        height: height,
-        texelSizeX,
-        texelSizeY,
-        attach(id) {
-            gl.activeTexture(gl.TEXTURE0 + id);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            return id;
-        }
-    };
-};
-
-
-const createDoubleFBO = (gl, width, height, internalFormat, format, type, param) => {
-    let fbo1 = createFBO(gl, width, height, internalFormat, format, type, param);
-    let fbo2 = createFBO(gl, width, height, internalFormat, format, type, param);
-
-    return {
-        width: width,
-        height: height,
-        texelSizeX: fbo1.texelSizeX,
-        texelSizeY: fbo1.texelSizeY,
-        get read() {
-            return fbo1;
-        },
-        set read(value) {
-            fbo1 = value;
-        },
-        get write() {
-            return fbo2;
-        },
-        set write(value) {
-            fbo2 = value;
-        },
-        swap() {
-            let temp = fbo1;
-            fbo1 = fbo2;
-            fbo2 = temp;
-        }
-    }
-};
