@@ -1,6 +1,5 @@
 import React from "react";
 import {makeStyles} from "@material-ui/core/styles";
-import LDR_LLL1_0 from "./texture/LDR_LLL1_0.png";
 import * as program from "./program.js"
 import * as buffer from "./buffer.js"
 import * as utility from "./utility.js"
