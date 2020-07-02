@@ -1,26 +1,8 @@
 import React from "react";
 import {makeStyles} from "@material-ui/core/styles";
-import baseVertexShader from "./shader/base.vert";
-import blurVertexShader from "./shader/blur.vert";
-import blurShader from "./shader/blur.frag";
-import copyShader from "./shader/copy.frag";
-import clearShader from "./shader/clear.frag";
-import colorShader from "./shader/color.frag";
-import checkerboardShader from "./shader/checkerboard.frag";
-import bloomPrefilterShader from "./shader/bloom_prefilter.frag";
-import bloomBlurShader from "./shader/bloom_blur.frag";
-import bloomFinalShader from "./shader/bloom_final.frag";
-import sunraysMaskShader from "./shader/sunrays_mask.frag";
-import sunraysShader from "./shader/sunrays.frag";
-import splatShader from "./shader/splat.frag";
-import advectionShader from "./shader/advection.frag";
-import divergenceShader from "./shader/divergence.frag";
-import curlShader from "./shader/curl.frag";
-import vorticityShader from "./shader/vorticity.frag";
-import pressureShader from "./shader/pressure.frag";
-import gradientSubtractShader from "./shader/gradient_substract.frag";
-import displayShaderSource from "./shader/display.frag";
 import LDR_LLL1_0 from "./texture/LDR_LLL1_0.png";
+import * as program from "./program.js"
+import * as buffer from "./buffer.js"
 import * as utility from "./utility.js"
 
 
@@ -43,9 +25,13 @@ export default function Canvas(props) {
     const classes = useStyles();
 
     const canvas = React.useRef(null);
-    const [state, setState] = React.useState({});
+    const [state, setState] = React.useState({
+        updateTime: Date.now(),
+        colorTime: 0.0,
+        pointers: []
+    });
 
-    const {gl} = state;
+    const {gl, updateTime, colorTime, pointers} = state;
     const {settings} = props;
     const {
         dyeResolution,
@@ -56,7 +42,7 @@ export default function Canvas(props) {
         // vorticity,
         // splatRadius,
         shadingEnabled,
-        // colorEnabled,
+        colorEnabled,
         // animationPaused,
         bloomEnabled,
         // bloomIntensity,
@@ -68,12 +54,8 @@ export default function Canvas(props) {
     // Initialize GL context.
     const onInitiate = React.useCallback(() => {
         const state = initialize(
-            canvas,
-            dyeResolution,
-            simResolution,
-            shadingEnabled,
-            bloomEnabled,
-            sunraysEnabled,
+            canvas, dyeResolution, simResolution,
+            shadingEnabled, bloomEnabled, sunraysEnabled,
         );
 
         setState(prevState => ({...prevState, ...state}));
@@ -88,9 +70,18 @@ export default function Canvas(props) {
         if (!gl)
             return;
 
-        render(gl);
+        let state = {};
+        const now = Date.now();
+        const deltaTime = Math.min((now - updateTime) / 1000, 0.016666);
 
-    }, [gl]);
+        utility.resizeCanvas(gl.canvas);
+        state = updateColors(deltaTime, colorTime, colorEnabled, pointers);
+
+        // setState(prevState => ({...prevState, ...state}));
+        //
+        // render(gl);
+
+    }, [gl, updateTime, colorTime, pointers, colorEnabled]);
 
     // Handle resizing event.
     React.useEffect(() => {
@@ -122,6 +113,69 @@ const initialize = (
     bloomEnabled,
     sunraysEnabled,
 ) => {
+    const {gl, ext} = getContext(canvas);
+
+    const dyeSize = utility.getBufferSize(gl, dyeResolution);
+    const simSize = utility.getBufferSize(gl, simResolution);
+    const sunraysSize = utility.getBufferSize(gl, 256);
+    const bloomSize = utility.getBufferSize(gl, 256);
+    const bloomIterations = 8;
+
+    const state = {
+        gl: gl,
+        ext: ext,
+        texture: new buffer.Texture(gl),
+        buffers: {
+            dye: new buffer.Dye(gl, dyeSize, ext),
+            velocity: new buffer.Velocity(gl, simSize, ext),
+            divergence: new buffer.Divergence(gl, simSize, ext),
+            curl: new buffer.Curl(gl, simSize, ext),
+            pressure: new buffer.Pressure(gl, simSize, ext),
+            bloom: new buffer.Bloom(gl, bloomSize, ext),
+            bloomBuffers: [],
+            sunrays: new buffer.Sunrays(gl, sunraysSize, ext),
+            sunraysTemp: new buffer.Sunrays(gl, sunraysSize, ext)
+        },
+        program: {
+            splat: new program.Splat(gl),
+            copy: new program.Copy(gl),
+            curl: new program.Curl(gl),
+            vorticity: new program.Vorticity(gl),
+            divergence: new program.Divergence(gl),
+            clear: new program.Clear(gl),
+            pressure: new program.Pressure(gl),
+            gradientSubtract: new program.GradientSubtract(gl),
+            advection: new program.Advection(gl, ext.supportLinearFiltering),
+            bloomPrefilter: new program.BloomPrefilter(gl),
+            bloomBlur: new program.BloomBlur(gl),
+            bloomFinal: new program.BloomFinal(gl),
+            sunraysMask: new program.SunraysMask(gl),
+            sunrays: new program.Sunrays(gl),
+            blur: new program.Blur(gl),
+            color: new program.Color(gl),
+            checkerboard: new program.CheckerBoard(gl),
+            display: new program.Display(
+                gl, shadingEnabled, bloomEnabled, sunraysEnabled
+            ),
+        },
+    };
+
+    for (let i = 0; i < bloomIterations; i++) {
+        const width = bloomSize.width >> (i + 1);
+        const height = bloomSize.height >> (i + 1);
+        if (width < 2 || height < 2)
+            break;
+
+        state.buffers.bloomBuffers.push(
+            new buffer.Bloom(gl, {width, height}, ext)
+        );
+    }
+
+    return state;
+};
+
+
+const getContext = (canvas) => {
     const params = {
         alpha: true,
         depth: false,
@@ -143,7 +197,8 @@ const initialize = (
     if (isWebGL2) {
         gl.getExtension("EXT_color_buffer_float");
         supportLinearFiltering = gl.getExtension("OES_texture_float_linear");
-    } else {
+    }
+    else {
         halfFloat = gl.getExtension("OES_texture_half_float");
         supportLinearFiltering = gl.getExtension(
             "OES_texture_half_float_linear"
@@ -163,35 +218,22 @@ const initialize = (
         formatRGBA = getSupportedFormat(gl, gl.RGBA16F, gl.RGBA, halfFloatTexType);
         formatRG = getSupportedFormat(gl, gl.RG16F, gl.RG, halfFloatTexType);
         formatR = getSupportedFormat(gl, gl.R16F, gl.RED, halfFloatTexType);
-    } else {
+    }
+    else {
         formatRGBA = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
         formatRG = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
         formatR = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
     }
 
-    const ext = {
-        formatRGBA,
-        formatRG,
-        formatR,
-        halfFloatTexType,
-        supportLinearFiltering
-    };
-
-    const shaders = initializeShaders(
-        gl, supportLinearFiltering,
-        shadingEnabled,
-        bloomEnabled,
-        sunraysEnabled,
-    );
-    const texture = createTextureAsync(gl);
-    const buffers = initFrameBuffers(gl, dyeResolution, simResolution, ext);
-
     return {
-        gl: gl,
-        ext: ext,
-        shaders: shaders,
-        texture: texture,
-        buffers: buffers
+        gl,
+        ext: {
+            formatRGBA,
+            formatRG,
+            formatR,
+            halfFloatTexType,
+            supportLinearFiltering
+        }
     };
 };
 
@@ -234,201 +276,25 @@ const supportRenderTextureFormat = (gl, internalFormat, format, type) => {
 };
 
 
-const initializeShaders = (
-    gl,
-    supportLinearFiltering,
-    shadingEnabled,
-    bloomEnabled,
-    sunraysEnabled,
-) => {
-    const materialKeywords = [];
+const updateColors = (deltaTime, colorTime, colorEnabled, pointers) => {
+    if (!colorEnabled)
+        return;
 
-    if (shadingEnabled) {
-        materialKeywords.push("SHADING");
-    }
-    if (bloomEnabled) {
-        materialKeywords.push("BLOOM");
-    }
-    if (sunraysEnabled) {
-        materialKeywords.push("SUNRAYS");
+    let _colorTime = colorTime + deltaTime * 10.0;
+    if (_colorTime >= 1) {
+        _colorTime = utility.wrap(_colorTime, 0, 1);
+        pointers.forEach(pointer => {
+            pointer.color = utility.generateColor();
+        });
     }
 
     return {
-        blur: new utility.Program(gl, blurVertexShader, blurShader),
-        copy: new utility.Program(gl, baseVertexShader, copyShader),
-        clear: new utility.Program(gl, baseVertexShader, clearShader),
-        color: new utility.Program(gl, baseVertexShader, colorShader),
-        checkerboard: new utility.Program(gl, baseVertexShader, checkerboardShader),
-        bloomPrefilter: new utility.Program(gl, baseVertexShader, bloomPrefilterShader),
-        bloomBlur: new utility.Program(gl, baseVertexShader, bloomBlurShader),
-        bloomFinal: new utility.Program(gl, baseVertexShader, bloomFinalShader),
-        sunraysMask: new utility.Program(gl, baseVertexShader, sunraysMaskShader),
-        sunrays: new utility.Program(gl, baseVertexShader, sunraysShader),
-        splat: new utility.Program(gl, baseVertexShader, splatShader),
-        advection: new utility.Program(
-            gl, baseVertexShader, advectionShader,
-            supportLinearFiltering ? null : ["MANUAL_FILTERING"]
-        ),
-        divergence: new utility.Program(gl, baseVertexShader, divergenceShader),
-        curl: new utility.Program(gl, baseVertexShader, curlShader),
-        vorticity: new utility.Program(gl, baseVertexShader, vorticityShader),
-        pressure: new utility.Program(gl, baseVertexShader, pressureShader),
-        gradientSubtract: new utility.Program(gl, baseVertexShader, gradientSubtractShader),
-        display: new utility.Material(
-            gl, baseVertexShader, displayShaderSource, materialKeywords
-        ),
-    };
-};
-
-
-const createTextureAsync = (gl) => {
-    let texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    gl.texImage2D(
-        gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE,
-        new Uint8Array([255, 255, 255])
-    );
-
-    const obj = {
-        texture,
-        width: 1,
-        height: 1,
-        attach(id) {
-            gl.activeTexture(gl.TEXTURE0 + id);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            return id;
-        }
-    };
-
-    let image = new Image();
-    image.onload = () => {
-        obj.width = image.width;
-        obj.height = image.height;
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
-    };
-    image.src = LDR_LLL1_0;
-
-    return obj;
-};
-
-
-const initFrameBuffers = (gl, dyeResolution, simResolution, ext) => {
-    const _dyeResolution = getResolution(gl, dyeResolution);
-    const _simResolution = getResolution(gl, simResolution);
-
-    const texType = ext.halfFloatTexType;
-    const rgba = ext.formatRGBA;
-    const rg = ext.formatRG;
-    const r = ext.formatR;
-    const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
-
-    const buffers = {
-        dye: new utility.DoubleFramebuffer(
-            gl, _dyeResolution.width, _dyeResolution.height,
-            rgba.internalFormat, rgba.format, texType, filtering
-        ),
-        velocity: new utility.DoubleFramebuffer(
-            gl, _simResolution.width, _simResolution.height,
-            rg.internalFormat, rg.format, texType, filtering
-        ),
-        divergence: new utility.Framebuffer(
-            gl, _simResolution.width, _simResolution.height,
-            r.internalFormat, r.format, texType, gl.NEAREST
-        ),
-        curl: new utility.Framebuffer(
-            gl, _simResolution.width, _simResolution.height,
-            r.internalFormat, r.format, texType, gl.NEAREST
-        ),
-        pressure: new utility.DoubleFramebuffer(
-            gl, _simResolution.width, _simResolution.height,
-            r.internalFormat, r.format, texType, gl.NEAREST
-        ),
-    };
-
-    const bloomBuffers = initBloomFrameBuffers(gl, ext);
-    const sunraysBuffers = initSunraysFrameBuffers(gl, ext);
-    return {...buffers, ...bloomBuffers, ...sunraysBuffers};
-};
-
-
-const initBloomFrameBuffers = (gl, ext) => {
-    const resolution = getResolution(gl, 256);
-    const iterations = 8;
-
-    const texType = ext.halfFloatTexType;
-    const rgba = ext.formatRGBA;
-    const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
-
-    const buffers = {
-        bloom: new utility.Framebuffer(
-            gl, resolution.width, resolution.height,
-            rgba.internalFormat,
-            rgba.format,
-            texType,
-            filtering
-        ),
-        bloomFrameBuffers: []
-    };
-
-    for (let i = 0; i < iterations; i++) {
-        const width = resolution.width >> (i + 1);
-        const height = resolution.height >> (i + 1);
-
-        if (width < 2 || height < 2)
-            break;
-
-        const fbo = new utility.Framebuffer(
-            gl, width, height,
-            rgba.internalFormat, rgba.format, texType, filtering
-        );
-
-        buffers.bloomFrameBuffers.push(fbo);
+        colorTime: _colorTime,
+        pointers,
     }
-
-    return buffers
-};
-
-
-const initSunraysFrameBuffers = (gl, ext) => {
-    const resolution = getResolution(gl, 196);
-
-    const texType = ext.halfFloatTexType;
-    const r = ext.formatR;
-    const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
-
-    return {
-        sunrays: new utility.Framebuffer(
-            gl, resolution.width, resolution.height,
-            r.internalFormat, r.format, texType, filtering
-        ),
-        sunraysTemp: new utility.Framebuffer(
-            gl, resolution.width, resolution.height,
-            r.internalFormat, r.format, texType, filtering
-        )
-    };
 };
 
 
 const render = (gl) => {
+
 };
-
-
-function getResolution(gl, resolution) {
-    let aspectRatio = gl.drawingBufferWidth / gl.drawingBufferHeight;
-    if (aspectRatio < 1)
-        aspectRatio = 1.0 / aspectRatio;
-
-    let min = Math.round(resolution);
-    let max = Math.round(resolution * aspectRatio);
-
-    if (gl.drawingBufferWidth > gl.drawingBufferHeight) {
-        return {width: max, height: min};
-    }
-
-    return {width: min, height: max};
-}

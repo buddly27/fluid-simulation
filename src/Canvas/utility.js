@@ -1,204 +1,74 @@
-export class Program {
+export const getBufferSize = (gl, resolution) => {
+    let aspectRatio = gl.drawingBufferWidth / gl.drawingBufferHeight;
+    if (aspectRatio < 1)
+        aspectRatio = 1.0 / aspectRatio;
 
-    constructor(gl, vertexShaderSource, fragmentShaderSource, fragmentKeywords = null) {
-        const vertexShader = loadShader(
-            gl, gl.VERTEX_SHADER, vertexShaderSource
-        );
-        const fragmentShader = loadShader(
-            gl, gl.FRAGMENT_SHADER, fragmentShaderSource, fragmentKeywords
-        );
-        this._program = createProgram(gl, vertexShader, fragmentShader);
-        this._uniforms = getUniforms(gl, this._program);
+    let min = Math.round(resolution);
+    let max = Math.round(resolution * aspectRatio);
+
+    if (gl.drawingBufferWidth > gl.drawingBufferHeight) {
+        return {width: max, height: min};
     }
 
-    bind(gl) {
-        gl.useProgram(this._program);
-    }
-}
-
-
-export class Material {
-
-    constructor(gl, vertexShaderSource, fragmentShaderSource, fragmentKeywords) {
-        this._vertexShader = loadShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-        this._fragmentShaderSource = fragmentShaderSource;
-
-        this._programs = {};
-        this._current_hash = null;
-        this._uniforms = [];
-
-        // Initiate material.
-        this.update(gl, fragmentKeywords)
-    }
-
-    update(gl, keywords) {
-        let hash = 0;
-
-        keywords.forEach((keyword) => {
-            hash += hashCode(keyword);
-        });
-
-        let program = this._programs[hash];
-        if (!program) {
-            const fragmentShader = loadShader(
-                gl, gl.FRAGMENT_SHADER, this._fragmentShaderSource
-            );
-            program = createProgram(gl, this._vertexShader, fragmentShader);
-            this._programs[hash] = program;
-        }
-
-        if (this._current_hash !== hash) {
-            this._current_hash = hash;
-            this._uniforms = getUniforms(gl, this._programs[this._current_hash]);
-        }
-    }
-
-    bind(gl) {
-        gl.useProgram(this._programs[this._current_hash]);
-    }
-}
-
-
-export class Framebuffer {
-
-    constructor(gl, width, height, internalFormat, format, type, param) {
-        this.width = width;
-        this.height = height;
-
-        gl.activeTexture(gl.TEXTURE0);
-
-        this.texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, param);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, param);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(
-            gl.TEXTURE_2D, 0, internalFormat, this.width, this.height, 0,
-            format, type, null
-        );
-
-        this.fbo = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
-        gl.framebufferTexture2D(
-            gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D,
-            this.texture, 0
-        );
-
-        gl.viewport(0, 0, this.width, this.height);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        this.texelSizeX = 1.0 / this.width;
-        this.texelSizeY = 1.0 / this.height;
-    }
-
-    attach(gl, id) {
-        gl.activeTexture(gl.TEXTURE0 + id);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        return id;
-    }
-}
-
-
-export class DoubleFramebuffer {
-
-    constructor(gl, width, height, internalFormat, format, type, param) {
-        this.width = width;
-        this.height = height;
-
-        this._fbo1 = new Framebuffer(
-            gl, this.width, this.height, internalFormat, format, type, param
-        );
-        this._fbo2 = new Framebuffer(
-            gl, this.width, this.height, internalFormat, format, type, param
-        );
-
-        this._texelSizeX = this._fbo1.texelSizeX;
-        this._texelSizeY = this._fbo1.texelSizeY;
-    }
-
-    get read() {
-        return this._fbo1;
-    }
-
-    set read(value) {
-        this._fbo1 = value;
-    }
-
-    get write() {
-        return this._fbo2;
-    }
-
-    set write(value) {
-        this._fbo2 = value;
-    }
-
-    swap() {
-        let temp = this._fbo1;
-        this._fbo1 = this._fbo2;
-        this._fbo2 = temp;
-    }
-}
-
-
-const createProgram = (gl, vertexShader, fragmentShader) => {
-    const shaderProgram = gl.createProgram();
-    gl.attachShader(shaderProgram, vertexShader);
-    gl.attachShader(shaderProgram, fragmentShader);
-    gl.linkProgram(shaderProgram);
-
-    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        throw gl.getProgramInfoLog(shaderProgram);
-    }
-
-    return shaderProgram;
+    return {width: min, height: max};
 };
 
 
-const loadShader = (gl, type, source, keywords = null) => {
-    const shader = gl.createShader(type);
-    let _source = source;
-
-    if (keywords != null) {
-        let keywordsString = "";
-        keywords.forEach(keyword => {
-            keywordsString += `#define ${keyword}\n`;
-        });
-        _source = keywordsString + source
+export const resizeCanvas = (canvas) => {
+    let width = scaleByPixelRatio(canvas.clientWidth);
+    let height = scaleByPixelRatio(canvas.clientHeight);
+    if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+        return true;
     }
-
-    gl.shaderSource(shader, _source);
-    gl.compileShader(shader);
-
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        throw gl.getShaderInfoLog(shader);
-    }
-
-    return shader;
+    return false;
 };
 
 
-const getUniforms = (gl, program) => {
-    const uniforms = [];
-    const uniformCount = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
-
-    for (let i = 0; i < uniformCount; i++) {
-        let uniformName = gl.getActiveUniform(program, i).name;
-        uniforms[uniformName] = gl.getUniformLocation(program, uniformName);
-    }
-
-    return uniforms;
+export const scaleByPixelRatio = (input) => {
+    let pixelRatio = window.devicePixelRatio || 1;
+    return Math.floor(input * pixelRatio);
 };
 
 
-const hashCode = (string) => {
-    if (string.length === 0)
-        return 0;
+export const wrap = (value, min, max) => {
+    let range = max - min;
+    if (range === 0)
+        return min;
 
-    let hash = 0;
-    for (let i = 0; i < string.length; i++) {
-        hash = (hash << 5) - hash + string.charCodeAt(i);
-        hash |= 0; // Convert to 32bit integer
+    return (value - min) % range + min;
+};
+
+export const generateColor = () => {
+    let color = HSVtoRGB(Math.random(), 1.0, 1.0);
+    color.red *= 0.15;
+    color.green *= 0.15;
+    color.blue *= 0.15;
+    return color;
+};
+
+
+const HSVtoRGB = (hue, saturation, value) => {
+    const i = Math.floor(hue * 6);
+    const f = hue * 6 - i;
+    const p = value * (1 - saturation);
+    const q = value * (1 - f * saturation);
+    const t = value * (1 - (1 - f) * saturation);
+
+    switch (i % 6) {
+        default:
+        case 0:
+            return {red: value, green: t, blue: p};
+        case 1:
+            return {red: q, green: value, blue: p};
+        case 2:
+            return {red: p, green: value, blue: t};
+        case 3:
+            return {red: p, green: q, blue: value};
+        case 4:
+            return {red: t, green: p, blue: value};
+        case 5:
+            return {red: value, green: p, blue: q};
     }
-    return hash;
 };
