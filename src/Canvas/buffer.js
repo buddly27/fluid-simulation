@@ -21,8 +21,8 @@ class Frame {
             format, texType, null
         );
 
-        this._fbo = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
+        this._buffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this._buffer);
         gl.framebufferTexture2D(
             gl.FRAMEBUFFER,
             gl.COLOR_ATTACHMENT0,
@@ -39,7 +39,7 @@ class Frame {
     }
 
     get object() {
-        return this._fbo;
+        return this._buffer;
     }
 
     get width() {
@@ -50,7 +50,7 @@ class Frame {
         return this._height;
     }
 
-    get texelSize() {
+    get texel() {
         return {
             width: 1.0 / this._width,
             height: 1.0 / this._height,
@@ -88,8 +88,8 @@ class DoubleFrame {
         return this._buffer1.height;
     }
 
-    get texelSize() {
-        return this._buffer1.texelSize;
+    get texel() {
+        return this._buffer1.texel;
     }
 
     get buffer1() {

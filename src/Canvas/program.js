@@ -67,24 +67,24 @@ export class Splat extends BaseProgram {
         super(gl, baseVertexShader, splatShader);
     }
 
-    apply(dyeBuffer, velocityBuffer, radius, x, y, dx, dy, color) {
+    apply(dyeFrame, velocityFrame, radius, x, y, dx, dy, color) {
         const {width, height} = this.gl.canvas;
 
         this.bind();
 
-        this.gl.uniform1i(this.uniforms["uTarget"], velocityBuffer.read.attach(0));
+        this.gl.uniform1i(this.uniforms["uTarget"], velocityFrame.buffer1.attach(0));
         this.gl.uniform1f(this.uniforms["aspectRatio"], width / height);
         this.gl.uniform2f(this.uniforms["point"], x, y);
         this.gl.uniform3f(this.uniforms["color"], dx, dy, 0.0);
         this.gl.uniform1f(this.uniforms["radius"], correctRadius(radius / 100.0));
-        blit(this.gl, velocityBuffer.write.fbo);
-        velocityBuffer.swap();
+        blit(this.gl, velocityFrame.buffer2.object);
+        velocityFrame.swap();
 
-        this.gl.viewport(0, 0, dyeBuffer.width, dyeBuffer.height);
-        this.gl.uniform1i(this.uniforms["uTarget"], dyeBuffer.read.attach(0));
+        this.gl.viewport(0, 0, dyeFrame.width, dyeFrame.height);
+        this.gl.uniform1i(this.uniforms["uTarget"], dyeFrame.buffer1.attach(0));
         this.gl.uniform3f(this.uniforms["color"], color.red, color.green, color.blue);
-        blit(this.gl, dyeBuffer.write.fbo);
-        dyeBuffer.swap();
+        blit(this.gl, dyeFrame.buffer2.object);
+        dyeFrame.swap();
     }
 }
 
@@ -95,11 +95,11 @@ export class Copy extends BaseProgram {
         super(gl, baseVertexShader, copyShader);
     }
 
-    apply(target, newFBO) {
+    apply(frame1, frame2) {
         this.bind();
 
-        this.gl.uniform1i(this.uniforms["uTexture"], target.attach(0));
-        blit(newFBO.fbo);
+        this.gl.uniform1i(this.uniforms["uTexture"], frame1.attach(0));
+        blit(frame2.object);
     }
 }
 
@@ -110,14 +110,14 @@ export class Curl extends BaseProgram {
         super(gl, baseVertexShader, curlShader);
     }
 
-    apply(buffers) {
-        const {velocity, curl} = buffers;
-
+    apply(velocityFrame, curlFrame) {
         this.bind();
 
-        this.gl.uniform2f(this.uniforms["texelSize"], velocity.texelSizeX, velocity.texelSizeY);
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocity.read.attach(0));
-        blit(curl.fbo);
+        const {texel} = velocityFrame;
+
+        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
+        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(0));
+        blit(curlFrame.object);
     }
 }
 
@@ -128,16 +128,18 @@ export class Vorticity extends BaseProgram {
         super(gl, baseVertexShader, vorticityShader);
     }
 
-    apply(deltaTime, velocity, curl, vorticity) {
+    apply(velocityFrame, curlFrame, vorticity, deltaTime) {
         this.bind();
 
-        this.gl.uniform2f(this.uniforms["texelSize"], velocity.texelSizeX, velocity.texelSizeY);
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocity.read.attach(0));
-        this.gl.uniform1i(this.uniforms["uCurl"], curl.attach(1));
+        const {texel} = velocityFrame;
+
+        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
+        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(0));
+        this.gl.uniform1i(this.uniforms["uCurl"], curlFrame.attach(1));
         this.gl.uniform1f(this.uniforms["curl"], vorticity);
         this.gl.uniform1f(this.uniforms["dt"], deltaTime);
-        blit(velocity.write.fbo);
-        velocity.swap();
+        blit(velocityFrame.buffer2.object);
+        velocityFrame.swap();
     }
 }
 
@@ -148,12 +150,14 @@ export class Divergence extends BaseProgram {
         super(gl, baseVertexShader, divergenceShader);
     }
 
-    apply(velocity, divergence) {
+    apply(velocityFrame, divergenceFrame) {
         this.bind();
 
-        this.gl.uniform2f(this.uniforms["texelSize"], velocity.texelSizeX, velocity.texelSizeY);
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocity.read.attach(0));
-        blit(divergence.fbo);
+        const {texel} = velocityFrame;
+
+        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
+        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(0));
+        blit(divergenceFrame.object);
     }
 }
 
@@ -164,13 +168,13 @@ export class Clear extends BaseProgram {
         super(gl, baseVertexShader, clearShader);
     }
 
-    apply(pressureBuffer, pressure) {
+    apply(frame, pressure) {
         this.bind();
 
-        this.gl.uniform1i(this.uniforms["uTexture"], pressure.read.attach(0));
+        this.gl.uniform1i(this.uniforms["uTexture"], frame.buffer1.attach(0));
         this.gl.uniform1f(this.uniforms["value"], pressure);
-        blit(pressureBuffer.write.fbo);
-        pressureBuffer.swap();
+        blit(frame.buffer2.object);
+        frame.swap();
     }
 }
 
@@ -181,16 +185,18 @@ export class Pressure extends BaseProgram {
         super(gl, baseVertexShader, pressureShader);
     }
 
-    apply(iterations, velocity, divergence, pressure) {
+    apply(velocityFrame, divergenceFrame, pressureFrame, iterations) {
         this.bind();
 
-        this.gl.uniform2f(this.uniforms["texelSize"], velocity.texelSizeX, velocity.texelSizeY);
-        this.gl.uniform1i(this.uniforms["uDivergence"], divergence.attach(0));
+        const {texel} = velocityFrame;
+
+        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
+        this.gl.uniform1i(this.uniforms["uDivergence"], divergenceFrame.attach(0));
 
         for (let i = 0; i < iterations; i++) {
-            this.gl.uniform1i(this.uniforms["uPressure"], pressure.read.attach(1));
-            blit(pressure.write.fbo);
-            pressure.swap();
+            this.gl.uniform1i(this.uniforms["uPressure"], pressureFrame.buffer1.attach(1));
+            blit(pressureFrame.buffer2.object);
+            pressureFrame.swap();
         }
     }
 }
@@ -202,14 +208,16 @@ export class GradientSubtract extends BaseProgram {
         super(gl, baseVertexShader, gradientSubtractShader);
     }
 
-    apply(velocity, pressure) {
+    apply(velocityFrame, pressureFrame) {
         this.bind();
 
-        this.gl.uniform2f(this.uniforms["texelSize"], velocity.texelSizeX, velocity.texelSizeY);
-        this.gl.uniform1i(this.uniforms["uPressure"], pressure.read.attach(0));
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocity.read.attach(1));
-        blit(velocity.write.fbo);
-        velocity.swap();
+        const {texel} = velocityFrame;
+
+        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
+        this.gl.uniform1i(this.uniforms["uPressure"], pressureFrame.buffer1.attach(0));
+        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(1));
+        blit(velocityFrame.buffer2.object);
+        velocityFrame.swap();
     }
 }
 
@@ -222,46 +230,41 @@ export class Advection extends BaseProgram {
         this._supportLinearFiltering = supportLinearFiltering;
     }
 
-    apply(dyeBuffer, velocityBuffer, velocityDissipation, densityDissipation, deltaTime) {
+    apply(dyeFrame, velocityFrame, velocityDissipation, densityDissipation, deltaTime) {
         this.bind();
 
-        this.gl.uniform2f(
-            this.uniforms["texelSize"],
-            velocityBuffer.texelSizeX,
-            velocityBuffer.texelSizeY
-        );
+        const vTexel = velocityFrame.texel;
+        const dTexel = dyeFrame.texel;
+
+        this.gl.uniform2f(this.uniforms["texelSize"], vTexel.width, vTexel.height);
 
         if (!this._supportLinearFiltering) {
             this.gl.uniform2f(
-                this.uniforms["dyeTexelSize"],
-                velocityBuffer.texelSizeX,
-                velocityBuffer.texelSizeY
+                this.uniforms["dyeTexelSize"], vTexel.width, vTexel.height
             );
         }
 
-        let velocityId = velocityBuffer.read.attach(0);
+        let velocityId = velocityFrame.buffer1.attach(0);
         this.gl.uniform1i(this.uniforms["uVelocity"], velocityId);
         this.gl.uniform1i(this.uniforms["uSource"], velocityId);
         this.gl.uniform1f(this.uniforms["dt"], deltaTime);
         this.gl.uniform1f(this.uniforms["dissipation"], velocityDissipation);
-        blit(velocityBuffer.write.fbo);
-        velocityBuffer.swap();
+        blit(velocityFrame.buffer2.object);
+        velocityFrame.swap();
 
-        this.gl.viewport(0, 0, dyeBuffer.width, dyeBuffer.height);
+        this.gl.viewport(0, 0, dyeFrame.width, dyeFrame.height);
 
         if (!this._supportLinearFiltering) {
             this.gl.uniform2f(
-                this.uniforms["dyeTexelSize"],
-                dyeBuffer.texelSizeX,
-                dyeBuffer.texelSizeY
+                this.uniforms["dyeTexelSize"], dTexel.width, dTexel.height
             );
         }
 
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocityBuffer.read.attach(0));
-        this.gl.uniform1i(this.uniforms["uSource"], dyeBuffer.read.attach(1));
+        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(0));
+        this.gl.uniform1i(this.uniforms["uSource"], dyeFrame.buffer1.attach(1));
         this.gl.uniform1f(this.uniforms["dissipation"], densityDissipation);
-        blit(dyeBuffer.write.fbo);
-        dyeBuffer.swap();
+        blit(dyeFrame.buffer2.object);
+        dyeFrame.swap();
     }
 }
 
@@ -272,7 +275,7 @@ export class BloomPrefilter extends BaseProgram {
         super(gl, baseVertexShader, bloomPrefilterShader);
     }
 
-    apply(source, destination, threshold, softKnee) {
+    apply(frame1, frame2, threshold, softKnee) {
         this.gl.disable(this.gl.BLEND);
 
         this.bind();
@@ -284,9 +287,9 @@ export class BloomPrefilter extends BaseProgram {
 
         this.gl.uniform3f(this.uniforms["curve"], curve0, curve1, curve2);
         this.gl.uniform1f(this.uniforms["threshold"], threshold);
-        this.gl.uniform1i(this.uniforms["uTexture"], source.attach(0));
-        this.gl.viewport(0, 0, destination.width, destination.height);
-        blit(destination.fbo);
+        this.gl.uniform1i(this.uniforms["uTexture"], frame1.attach(0));
+        this.gl.viewport(0, 0, frame2.width, frame2.height);
+        blit(frame2.object);
     }
 }
 
@@ -297,30 +300,32 @@ export class BloomBlur extends BaseProgram {
         super(gl, baseVertexShader, bloomBlurShader);
     }
 
-    apply(destination, bloomFrameBuffers) {
+    apply(frame, bloomFrameBuffers) {
         this.bind();
 
-        let last = destination;
+        let last = frame;
 
         for (let i = 0; i < bloomFrameBuffers.length; i++) {
-            let dest = bloomFrameBuffers[i];
-            this.gl.uniform2f(this.uniforms["texelSize"], last.texelSizeX, last.texelSizeY);
+            const _frame = bloomFrameBuffers[i];
+            const {width, height} = last.texel;
+            this.gl.uniform2f(this.uniforms["texelSize"], width, height);
             this.gl.uniform1i(this.uniforms["uTexture"], last.attach(0));
-            this.gl.viewport(0, 0, dest.width, dest.height);
-            blit(dest.fbo);
-            last = dest;
+            this.gl.viewport(0, 0, _frame.width, _frame.height);
+            blit(_frame.object);
+            last = _frame;
         }
 
         this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
         this.gl.enable(this.gl.BLEND);
 
         for (let i = bloomFrameBuffers.length - 2; i >= 0; i--) {
-            let baseTex = bloomFrameBuffers[i];
-            this.gl.uniform2f(this.uniforms["texelSize"], last.texelSizeX, last.texelSizeY);
+            const _frame = bloomFrameBuffers[i];
+            const {width, height} = last.texel;
+            this.gl.uniform2f(this.uniforms["texelSize"], width, height);
             this.gl.uniform1i(this.uniforms["uTexture"], last.attach(0));
-            this.gl.viewport(0, 0, baseTex.width, baseTex.height);
-            blit(baseTex.fbo);
-            last = baseTex;
+            this.gl.viewport(0, 0, _frame.width, _frame.height);
+            blit(_frame.object);
+            last = _frame;
         }
 
         return last;
@@ -334,18 +339,18 @@ export class BloomFinal extends BaseProgram {
         super(gl, baseVertexShader, bloomFinalShader);
     }
 
-    apply(destination, bloomIntensity) {
-        const {texelSizeX, texelSizeY, width, height} = destination;
+    apply(frame, bloomIntensity) {
+        const {texel, width, height} = frame;
 
         this.gl.disable(this.gl.BLEND);
 
         this.bind();
 
-        this.gl.uniform2f(this.uniforms["texelSize"], texelSizeX, texelSizeY);
-        this.gl.uniform1i(this.uniforms["uTexture"], destination.attach(0));
+        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
+        this.gl.uniform1i(this.uniforms["uTexture"], frame.attach(0));
         this.gl.uniform1f(this.uniforms["intensity"], bloomIntensity);
         this.gl.viewport(0, 0, width, height);
-        blit(destination.fbo);
+        blit(frame.object);
     }
 }
 
@@ -356,14 +361,14 @@ export class SunraysMask extends BaseProgram {
         super(gl, baseVertexShader, sunraysMaskShader);
     }
 
-    apply(source, mask) {
+    apply(frame1, frame2) {
         this.gl.disable(this.gl.BLEND);
 
         this.bind();
 
-        this.gl.uniform1i(this.uniforms["uTexture"], source.attach(0));
-        this.gl.viewport(0, 0, mask.width, mask.height);
-        blit(mask.fbo);
+        this.gl.uniform1i(this.uniforms["uTexture"], frame1.attach(0));
+        this.gl.viewport(0, 0, frame2.width, frame2.height);
+        blit(frame2.object);
     }
 }
 
@@ -374,13 +379,13 @@ export class Sunrays extends BaseProgram {
         super(gl, baseVertexShader, sunraysShader);
     }
 
-    apply(destination, mask, weight) {
+    apply(frame1, frame2, weight) {
         this.bind();
 
         this.gl.uniform1f(this.uniforms["weight"], weight);
-        this.gl.uniform1i(this.uniforms["uTexture"], mask.attach(0));
-        this.gl.viewport(0, 0, destination.width, destination.height);
-        blit(destination.fbo);
+        this.gl.uniform1i(this.uniforms["uTexture"], frame2.attach(0));
+        this.gl.viewport(0, 0, frame1.width, frame1.height);
+        blit(frame1.object);
     }
 }
 
@@ -391,17 +396,17 @@ export class Blur extends BaseProgram {
         super(gl, blurVertexShader, blurShader);
     }
 
-    apply(destination, temp, iterations) {
+    apply(frame1, frame2, iterations) {
         this.bind();
 
         for (let i = 0; i < iterations; i++) {
-            this.gl.uniform2f(this.uniforms["texelSize"], destination.texelSizeX, 0.0);
-            this.gl.uniform1i(this.uniforms["uTexture"], destination.attach(0));
-            blit(temp.fbo);
+            this.gl.uniform2f(this.uniforms["texelSize"], frame1.texel.width, 0.0);
+            this.gl.uniform1i(this.uniforms["uTexture"], frame1.attach(0));
+            blit(frame2.object);
 
-            this.gl.uniform2f(this.uniforms["texelSize"], 0.0, destination.texelSizeY);
-            this.gl.uniform1i(this.uniforms["uTexture"], temp.attach(0));
-            blit(destination.fbo);
+            this.gl.uniform2f(this.uniforms["texelSize"], 0.0, frame1.texel.height);
+            this.gl.uniform1i(this.uniforms["uTexture"], frame2.attach(0));
+            blit(frame1.object);
         }
     }
 }
