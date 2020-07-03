@@ -66,7 +66,7 @@ export class Graph extends utility.ContextMixin {
             curl: new buffer.Frame(
                 this.gl, simSize, formatR, halfFloatTexType, this.gl.NEAREST
             ),
-            pressure: new buffer.Frame(
+            pressure: new buffer.DoubleFrame(
                 this.gl, simSize, formatR, halfFloatTexType, this.gl.NEAREST
             ),
             bloom: new buffer.Frame(
@@ -78,7 +78,7 @@ export class Graph extends utility.ContextMixin {
                 this.gl, sunraysSize, formatR, halfFloatTexType,
                 this._ext.supportLinearFiltering ? this.gl.LINEAR : this.gl.NEAREST
             ),
-            sunraysTemp:  new buffer.Frame(
+            sunraysTemp: new buffer.Frame(
                 this.gl, sunraysSize, formatR, halfFloatTexType,
                 this._ext.supportLinearFiltering ? this.gl.LINEAR : this.gl.NEAREST
             ),
@@ -98,6 +98,7 @@ export class Graph extends utility.ContextMixin {
             );
         }
 
+        return buffers;
     }
 
     update(config) {
@@ -121,13 +122,13 @@ export class Graph extends utility.ContextMixin {
         this._program.splat.point = [x, y];
         this._program.splat.color = [dx, dy, 0.0];
         this._program.splat.radius = this._config.splatRadius;
-        blit(this.gl, this._buffer.velocity.buffer2.object);
+        this.blit(this.gl, this._buffer.velocity.buffer2.object);
         this._buffer.velocity.swap();
 
         this.gl.viewport(0, 0, this._buffer.dye.width, this._buffer.dye.height);
         this._program.splat.target = this._buffer.dye.buffer1.attach(0);
         this._program.splat.color = [color.red, color.green, color.blue];
-        blit(this.gl, this._buffer.dye.buffer2.object);
+        this.blit(this.gl, this._buffer.dye.buffer2.object);
         this._buffer.dye.swap();
     }
 
@@ -138,7 +139,7 @@ export class Graph extends utility.ContextMixin {
         this._program.curl.bind();
         this._program.curl.texelSize = this._buffer.velocity.texelSize;
         this._program.curl.velocity = this._buffer.velocity.buffer1.attach(0);
-        blit(this._buffer.curl.object);
+        this.blit(this._buffer.curl.object);
 
         this._program.vorticity.bind();
         this._program.vorticity.texelSize = this._buffer.velocity.texelSize;
@@ -146,18 +147,18 @@ export class Graph extends utility.ContextMixin {
         this._program.vorticity.curl = this._buffer.curl.attach(1);
         this._program.vorticity.vorticity = this._config.vorticity;
         this._program.vorticity.deltaTime = deltaTime;
-        blit(this._buffer.velocity.buffer2.object);
+        this.blit(this._buffer.velocity.buffer2.object);
         this._buffer.velocity.swap();
 
         this._program.divergence.bind();
         this._program.divergence.texelSize = this._buffer.velocity.texelSize;
         this._program.divergence.velocity = this._buffer.velocity.buffer1.attach(0);
-        blit(this._buffer.divergence.object);
+        this.blit(this._buffer.divergence.object);
 
-        this._clear.bind();
-        this._clear.texture = this._buffer.pressure.buffer1.attach(0);
-        this._clear.pressure = this._config.pressure;
-        blit(this._buffer.pressure.buffer2.object);
+        this._program.clear.bind();
+        this._program.clear.texture = this._buffer.pressure.buffer1.attach(0);
+        this._program.clear.pressure = this._config.pressure;
+        this.blit(this._buffer.pressure.buffer2.object);
         this._buffer.pressure.swap();
 
         this._program.pressure.bind();
@@ -166,7 +167,7 @@ export class Graph extends utility.ContextMixin {
 
         for (let i = 0; i < this._config.pressureIterations; i++) {
             this._program.pressure.pressure = this._buffer.pressure.buffer1.attach(1);
-            blit(this._buffer.pressure.buffer2.object);
+            this.blit(this._buffer.pressure.buffer2.object);
             this._buffer.pressure.swap();
         }
 
@@ -174,7 +175,7 @@ export class Graph extends utility.ContextMixin {
         this._program.gradientSubtract.texelSize = this._buffer.velocity.texelSize;
         this._program.gradientSubtract.pressure = this._buffer.pressure.buffer1.attach(0);
         this._program.gradientSubtract.velocity = this._buffer.velocity.buffer1.attach(1);
-        blit(this._buffer.velocity.buffer2.object);
+        this.blit(this._buffer.velocity.buffer2.object);
         this._buffer.velocity.swap();
 
         this._program.advection.bind();
@@ -187,7 +188,7 @@ export class Graph extends utility.ContextMixin {
         this._program.advection.source = this._buffer.velocity.buffer1.attach(0);
         this._program.advection.deltaTime = deltaTime;
         this._program.advection.dissipation = this._config.velocityDiffusion;
-        blit(this._buffer.velocity.buffer2.object);
+        this.blit(this._buffer.velocity.buffer2.object);
         this._buffer.velocity.swap();
 
         this.gl.viewport(0, 0, this._buffer.dye.width, this._buffer.dye.height);
@@ -198,7 +199,7 @@ export class Graph extends utility.ContextMixin {
         this._program.advection.velocity = this._buffer.velocity.buffer1.attach(0);
         this._program.advection.source = this._buffer.dye.buffer1.attach(1);
         this._program.advection.dissipation = this._config.densityDiffusion;
-        blit(this._buffer.dye.buffer2.object);
+        this.blit(this._buffer.dye.buffer2.object);
         this._buffer.dye.swap();
     }
 
@@ -215,7 +216,7 @@ export class Graph extends utility.ContextMixin {
 
         this._program.color.bind();
         this._program.color.color = [0.0, 0.0, 0.0, 1.0];
-        blit(null);
+        this.blit(null);
 
         this._program.display.bind();
 
@@ -236,7 +237,7 @@ export class Graph extends utility.ContextMixin {
         if (this._config.sunraysEnabled) {
             this._program.display.sunrays = this._buffer.sunrays.attach(3);
         }
-        blit(null);
+        this.blit(null);
     }
 
     applyBloom() {
@@ -257,7 +258,7 @@ export class Graph extends utility.ContextMixin {
         this._program.bloomPrefilter.threshold = threshold;
         this._program.bloomPrefilter.texture = this._buffer.dye.buffer1.attach(0);
         this.gl.viewport(0, 0, this._buffer.bloom.width, this._buffer.bloom.height);
-        blit(this._buffer.bloom.object);
+        this.blit(this._buffer.bloom.object);
 
         this._program.bloomBlur.bind();
 
@@ -268,7 +269,7 @@ export class Graph extends utility.ContextMixin {
             this._program.bloomBlur.texelSize = lastBuffer.texelSize;
             this._program.bloomBlur.texture = lastBuffer.attach(0);
             this.gl.viewport(0, 0, _buffer.width, _buffer.height);
-            blit(_buffer.object);
+            this.blit(_buffer.object);
             lastBuffer = _buffer;
         }
 
@@ -280,7 +281,7 @@ export class Graph extends utility.ContextMixin {
             this._program.bloomBlur.texelSize = lastBuffer.texelSize;
             this._program.bloomBlur.texture = lastBuffer.attach(0);
             this.gl.viewport(0, 0, _buffer.width, _buffer.height);
-            blit(_buffer.object);
+            this.blit(_buffer.object);
             lastBuffer = _buffer;
         }
 
@@ -291,7 +292,7 @@ export class Graph extends utility.ContextMixin {
         this._program.bloomFinal.texture = lastBuffer.attach(0);
         this._program.bloomFinal.intensity = this._config.bloomIntensity;
         this.gl.viewport(0, 0, this._buffer.bloom.width, this._buffer.bloom.height);
-        blit(this._buffer.bloom.object);
+        this.blit(this._buffer.bloom.object);
     }
 
     applySunrays() {
@@ -304,13 +305,13 @@ export class Graph extends utility.ContextMixin {
         this._program.sunraysMask.bind();
         this._program.sunraysMask.texture = this._buffer.dye.buffer1.attach(0);
         this.gl.viewport(0, 0, this._buffer.dye.buffer2.width, this._buffer.dye.buffer2.height);
-        blit(this._buffer.dye.buffer2.object);
+        this.blit(this._buffer.dye.buffer2.object);
 
         this._program.sunrays.bind();
         this._program.sunrays.weight = this._config.sunraysWeight;
         this._program.sunrays.texture = this._buffer.dye.buffer2.attach(0);
         this.gl.viewport(0, 0, this._buffer.sunrays.width, this._buffer.sunrays.height);
-        blit(this._buffer.sunrays.object);
+        this.blit(this._buffer.sunrays.object);
 
         this._program.blur.bind();
         const iterations = 1;
@@ -321,37 +322,36 @@ export class Graph extends utility.ContextMixin {
                 height: 0.0
             };
             this._program.blur.texture = this._buffer.sunrays.attach(0);
-            blit(this._buffer.sunraysTemp.object);
+            this.blit(this._buffer.sunraysTemp.object);
 
             this._program.blur.texelSize = {
                 width: 0.0,
                 height: this._buffer.sunrays.texelSize.height
             };
             this._program.blur.texture = this._buffer.sunraysTemp.attach(0);
-            blit(this._buffer.sunrays.object);
+            this.blit(this._buffer.sunrays.object);
         }
     }
+
+    blit(destination) {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.gl.createBuffer());
+        this.gl.bufferData(
+            this.gl.ARRAY_BUFFER,
+            new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]),
+            this.gl.STATIC_DRAW
+        );
+
+        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.gl.createBuffer());
+        this.gl.bufferData(
+            this.gl.ELEMENT_ARRAY_BUFFER,
+            new Uint16Array([0, 1, 2, 0, 2, 3]),
+            this.gl.STATIC_DRAW
+        );
+
+        this.gl.vertexAttribPointer(0, 2, this.gl.FLOAT, false, 0, 0);
+        this.gl.enableVertexAttribArray(0);
+
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, destination);
+        this.gl.drawElements(this.gl.TRIANGLES, 6, this.gl.UNSIGNED_SHORT, 0);
+    }
 }
-
-
-const blit = (gl, destination) => {
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]),
-        gl.STATIC_DRAW
-    );
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(
-        gl.ELEMENT_ARRAY_BUFFER,
-        new Uint16Array([0, 1, 2, 0, 2, 3]),
-        gl.STATIC_DRAW
-    );
-
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(0);
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, destination);
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-};
