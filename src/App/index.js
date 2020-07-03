@@ -28,7 +28,25 @@ export default function App() {
         sunraysWeight: 1
     });
 
-    const {drawerOpened} = state;
+    const {
+        drawerOpened,
+        dyeResolution,
+        simResolution,
+        densityDiffusion,
+        velocityDiffusion,
+        pressure,
+        vorticity,
+        splatRadius,
+        shadingEnabled,
+        colorEnabled,
+        animationPaused,
+        bloomEnabled,
+        bloomIntensity,
+        bloomThreshold,
+        sunraysEnabled,
+        sunraysWeight,
+
+    } = state;
 
     return (
         <div>
@@ -64,7 +82,21 @@ export default function App() {
             />
 
             <Canvas
-                settings={state}
+                dyeResolution={dyeResolution}
+                simResolution={simResolution}
+                densityDiffusion={densityDiffusion}
+                velocityDiffusion={velocityDiffusion}
+                pressure={pressure}
+                vorticity={vorticity}
+                splatRadius={splatRadius}
+                shadingEnabled={shadingEnabled}
+                colorEnabled={colorEnabled}
+                animationPaused={animationPaused}
+                bloomEnabled={bloomEnabled}
+                bloomIntensity={bloomIntensity}
+                bloomThreshold={bloomThreshold}
+                sunraysEnabled={sunraysEnabled}
+                sunraysWeight={sunraysWeight}
             />
         </div>
     );
