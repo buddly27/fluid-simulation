@@ -1,5 +1,4 @@
 import baseVertexShader from "./shader/base.vert";
-import blurVertexShader from "./shader/blur.vert";
 import splatShader from "./shader/splat.frag";
 import copyShader from "./shader/copy.frag";
 import curlShader from "./shader/curl.frag";
@@ -14,39 +13,20 @@ import bloomBlurShader from "./shader/bloom_blur.frag";
 import bloomFinalShader from "./shader/bloom_final.frag";
 import sunraysMaskShader from "./shader/sunrays_mask.frag";
 import sunraysShader from "./shader/sunrays.frag";
+import blurVertexShader from "./shader/blur.vert";
 import blurShader from "./shader/blur.frag";
 import colorShader from "./shader/color.frag";
-import checkerboardShader from "./shader/checkerboard.frag";
 import displayShaderSource from "./shader/display.frag";
+import * as utility from "./utility";
 
 
-class Base {
-
-    constructor(gl) {
-        this._gl = gl;
-    }
-
-    get gl() {
-        return this._gl;
-    }
-
-    createVertex(source) {
-        return loadShader(this.gl, this.gl.VERTEX_SHADER, source);
-    }
-
-    createFragment(source, keywords = null) {
-        return loadShader(this.gl, this.gl.FRAGMENT_SHADER, source, keywords);
-    }
-}
-
-
-class BaseProgram extends Base {
+class Base extends utility.ContextMixin {
 
     constructor(gl, vertexSource, fragmentSource, keywords = null) {
         super(gl);
 
-        const vertex = this.createVertex(vertexSource);
-        const fragment = this.createFragment(fragmentSource, keywords);
+        const vertex = loadVertexShader(gl, vertexSource);
+        const fragment = loadFragmentShader(gl, fragmentSource, keywords);
         this._program = createProgram(this.gl, vertex, fragment);
         this._uniforms = getUniforms(this.gl, this._program);
     }
@@ -55,472 +35,343 @@ class BaseProgram extends Base {
         return this._uniforms;
     }
 
+    set texelSize(size) {
+        this.gl.uniform2f(this.uniforms["texelSize"], size.width, size.height);
+    }
+
     bind() {
         this.gl.useProgram(this._program);
     }
 }
 
 
-export class Splat extends BaseProgram {
+export class Splat extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, splatShader);
     }
 
-    apply(dyeFrame, velocityFrame, radius, x, y, dx, dy, color) {
-        const {width, height} = this.gl.canvas;
+    set target(identifier) {
+        this.gl.uniform1i(this.uniforms["uTarget"], identifier);
+    }
 
-        this.bind();
+    set ratio(value) {
+        this.gl.uniform1f(this.uniforms["aspectRatio"], value);
+    }
 
-        this.gl.uniform1i(this.uniforms["uTarget"], velocityFrame.buffer1.attach(0));
-        this.gl.uniform1f(this.uniforms["aspectRatio"], width / height);
-        this.gl.uniform2f(this.uniforms["point"], x, y);
-        this.gl.uniform3f(this.uniforms["color"], dx, dy, 0.0);
-        this.gl.uniform1f(this.uniforms["radius"], correctRadius(radius / 100.0));
-        blit(this.gl, velocityFrame.buffer2.object);
-        velocityFrame.swap();
+    set point(values) {
+        this.gl.uniform2f(this.uniforms["point"], ...values);
+    }
 
-        this.gl.viewport(0, 0, dyeFrame.width, dyeFrame.height);
-        this.gl.uniform1i(this.uniforms["uTarget"], dyeFrame.buffer1.attach(0));
-        this.gl.uniform3f(this.uniforms["color"], color.red, color.green, color.blue);
-        blit(this.gl, dyeFrame.buffer2.object);
-        dyeFrame.swap();
+    set color(values) {
+        this.gl.uniform3f(this.uniforms["color"], ...values);
+    }
+
+    set radius(value) {
+        this.gl.uniform1f(this.uniforms["radius"], correctRadius(value / 100.0));
     }
 }
 
 
-export class Copy extends BaseProgram {
+export class Copy extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, copyShader);
     }
 
-    apply(frame1, frame2) {
-        this.bind();
-
-        this.gl.uniform1i(this.uniforms["uTexture"], frame1.attach(0));
-        blit(frame2.object);
+    set texture(identifier) {
+        this.gl.uniform1i(this.uniforms["uTexture"], identifier);
     }
 }
 
 
-export class Curl extends BaseProgram {
+export class Curl extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, curlShader);
     }
 
-    apply(velocityFrame, curlFrame) {
-        this.bind();
-
-        const {texel} = velocityFrame;
-
-        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(0));
-        blit(curlFrame.object);
+    set velocity(identifier) {
+        this.gl.uniform1i(this.uniforms["uVelocity"], identifier);
     }
 }
 
 
-export class Vorticity extends BaseProgram {
+export class Vorticity extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, vorticityShader);
     }
 
-    apply(velocityFrame, curlFrame, vorticity, deltaTime) {
-        this.bind();
+    set velocity(identifier) {
+        this.gl.uniform1i(this.uniforms["uVelocity"], identifier);
+    }
 
-        const {texel} = velocityFrame;
+    set curl(identifier) {
+        this.gl.uniform1i(this.uniforms["uCurl"], identifier);
+    }
 
-        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(0));
-        this.gl.uniform1i(this.uniforms["uCurl"], curlFrame.attach(1));
-        this.gl.uniform1f(this.uniforms["curl"], vorticity);
-        this.gl.uniform1f(this.uniforms["dt"], deltaTime);
-        blit(velocityFrame.buffer2.object);
-        velocityFrame.swap();
+    set vorticity(value) {
+        this.gl.uniform1f(this.uniforms["curl"], value);
+    }
+
+    set deltaTime(value) {
+        this.gl.uniform1f(this.uniforms["dt"], value);
     }
 }
 
 
-export class Divergence extends BaseProgram {
+export class Divergence extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, divergenceShader);
     }
 
-    apply(velocityFrame, divergenceFrame) {
-        this.bind();
-
-        const {texel} = velocityFrame;
-
-        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(0));
-        blit(divergenceFrame.object);
+    set velocity(identifier) {
+        this.gl.uniform1i(this.uniforms["uVelocity"], identifier);
     }
 }
 
 
-export class Clear extends BaseProgram {
+export class Clear extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, clearShader);
     }
 
-    apply(frame, pressure) {
-        this.bind();
+    set texture(identifier) {
+        this.gl.uniform1i(this.uniforms["uTexture"], identifier);
+    }
 
-        this.gl.uniform1i(this.uniforms["uTexture"], frame.buffer1.attach(0));
-        this.gl.uniform1f(this.uniforms["value"], pressure);
-        blit(frame.buffer2.object);
-        frame.swap();
+    set pressure(value) {
+        this.gl.uniform1f(this.uniforms["value"], value);
     }
 }
 
 
-export class Pressure extends BaseProgram {
+export class Pressure extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, pressureShader);
     }
 
-    apply(velocityFrame, divergenceFrame, pressureFrame, iterations) {
-        this.bind();
+    set divergence(identifier) {
+        this.gl.uniform1i(this.uniforms["uDivergence"], identifier);
+    }
 
-        const {texel} = velocityFrame;
-
-        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
-        this.gl.uniform1i(this.uniforms["uDivergence"], divergenceFrame.attach(0));
-
-        for (let i = 0; i < iterations; i++) {
-            this.gl.uniform1i(this.uniforms["uPressure"], pressureFrame.buffer1.attach(1));
-            blit(pressureFrame.buffer2.object);
-            pressureFrame.swap();
-        }
+    set pressure(identifier) {
+        this.gl.uniform1i(this.uniforms["uPressure"], identifier);
     }
 }
 
 
-export class GradientSubtract extends BaseProgram {
+export class GradientSubtract extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, gradientSubtractShader);
     }
 
-    apply(velocityFrame, pressureFrame) {
-        this.bind();
+    set pressure(identifier) {
+        this.gl.uniform1i(this.uniforms["uPressure"], identifier);
+    }
 
-        const {texel} = velocityFrame;
-
-        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
-        this.gl.uniform1i(this.uniforms["uPressure"], pressureFrame.buffer1.attach(0));
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(1));
-        blit(velocityFrame.buffer2.object);
-        velocityFrame.swap();
+    set velocity(identifier) {
+        this.gl.uniform1i(this.uniforms["uVelocity"], identifier);
     }
 }
 
 
-export class Advection extends BaseProgram {
+export class Advection extends Base {
 
     constructor(gl, supportLinearFiltering) {
         const keywords = supportLinearFiltering ? null : ["MANUAL_FILTERING"];
         super(gl, baseVertexShader, advectionShader, keywords);
-        this._supportLinearFiltering = supportLinearFiltering;
     }
 
-    apply(dyeFrame, velocityFrame, velocityDissipation, densityDissipation, deltaTime) {
-        this.bind();
+    set dyeTexelSize(size) {
+        this.gl.uniform2f(this.uniforms["dyeTexelSize"], size.width, size.height);
+    }
 
-        const vTexel = velocityFrame.texel;
-        const dTexel = dyeFrame.texel;
+    set velocity(identifier) {
+        this.gl.uniform1i(this.uniforms["uVelocity"], identifier);
+    }
 
-        this.gl.uniform2f(this.uniforms["texelSize"], vTexel.width, vTexel.height);
+    set source(identifier) {
+        this.gl.uniform1i(this.uniforms["uSource"], identifier);
+    }
 
-        if (!this._supportLinearFiltering) {
-            this.gl.uniform2f(
-                this.uniforms["dyeTexelSize"], vTexel.width, vTexel.height
-            );
-        }
+    set deltaTime(value) {
+        this.gl.uniform1f(this.uniforms["dt"], value);
+    }
 
-        let velocityId = velocityFrame.buffer1.attach(0);
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocityId);
-        this.gl.uniform1i(this.uniforms["uSource"], velocityId);
-        this.gl.uniform1f(this.uniforms["dt"], deltaTime);
-        this.gl.uniform1f(this.uniforms["dissipation"], velocityDissipation);
-        blit(velocityFrame.buffer2.object);
-        velocityFrame.swap();
-
-        this.gl.viewport(0, 0, dyeFrame.width, dyeFrame.height);
-
-        if (!this._supportLinearFiltering) {
-            this.gl.uniform2f(
-                this.uniforms["dyeTexelSize"], dTexel.width, dTexel.height
-            );
-        }
-
-        this.gl.uniform1i(this.uniforms["uVelocity"], velocityFrame.buffer1.attach(0));
-        this.gl.uniform1i(this.uniforms["uSource"], dyeFrame.buffer1.attach(1));
-        this.gl.uniform1f(this.uniforms["dissipation"], densityDissipation);
-        blit(dyeFrame.buffer2.object);
-        dyeFrame.swap();
+    set dissipation(value) {
+        this.gl.uniform1f(this.uniforms["dissipation"], value);
     }
 }
 
 
-export class BloomPrefilter extends BaseProgram {
+export class BloomPrefilter extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, bloomPrefilterShader);
     }
 
-    apply(frame1, frame2, threshold, softKnee) {
-        this.gl.disable(this.gl.BLEND);
+    set texture(identifier) {
+        this.gl.uniform1i(this.uniforms["uTexture"], identifier);
+    }
 
-        this.bind();
+    set threshold(value) {
+        this.gl.uniform1f(this.uniforms["threshold"], value);
+    }
 
-        let knee = threshold * softKnee + 0.0001;
-        let curve0 = softKnee - knee;
-        let curve1 = knee * 2;
-        let curve2 = 0.25 / knee;
-
-        this.gl.uniform3f(this.uniforms["curve"], curve0, curve1, curve2);
-        this.gl.uniform1f(this.uniforms["threshold"], threshold);
-        this.gl.uniform1i(this.uniforms["uTexture"], frame1.attach(0));
-        this.gl.viewport(0, 0, frame2.width, frame2.height);
-        blit(frame2.object);
+    set curves(values) {
+        this.gl.uniform3f(this.uniforms["curve"], ...values);
     }
 }
 
 
-export class BloomBlur extends BaseProgram {
+export class BloomBlur extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, bloomBlurShader);
     }
 
-    apply(frame, bloomFrameBuffers) {
-        this.bind();
-
-        let last = frame;
-
-        for (let i = 0; i < bloomFrameBuffers.length; i++) {
-            const _frame = bloomFrameBuffers[i];
-            const {width, height} = last.texel;
-            this.gl.uniform2f(this.uniforms["texelSize"], width, height);
-            this.gl.uniform1i(this.uniforms["uTexture"], last.attach(0));
-            this.gl.viewport(0, 0, _frame.width, _frame.height);
-            blit(_frame.object);
-            last = _frame;
-        }
-
-        this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
-        this.gl.enable(this.gl.BLEND);
-
-        for (let i = bloomFrameBuffers.length - 2; i >= 0; i--) {
-            const _frame = bloomFrameBuffers[i];
-            const {width, height} = last.texel;
-            this.gl.uniform2f(this.uniforms["texelSize"], width, height);
-            this.gl.uniform1i(this.uniforms["uTexture"], last.attach(0));
-            this.gl.viewport(0, 0, _frame.width, _frame.height);
-            blit(_frame.object);
-            last = _frame;
-        }
-
-        return last;
+    set texture(identifier) {
+        this.gl.uniform1i(this.uniforms["uTexture"], identifier);
     }
 }
 
 
-export class BloomFinal extends BaseProgram {
+export class BloomFinal extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, bloomFinalShader);
     }
 
-    apply(frame, bloomIntensity) {
-        const {texel, width, height} = frame;
+    set texture(identifier) {
+        this.gl.uniform1i(this.uniforms["uTexture"], identifier);
+    }
 
-        this.gl.disable(this.gl.BLEND);
-
-        this.bind();
-
-        this.gl.uniform2f(this.uniforms["texelSize"], texel.width, texel.height);
-        this.gl.uniform1i(this.uniforms["uTexture"], frame.attach(0));
-        this.gl.uniform1f(this.uniforms["intensity"], bloomIntensity);
-        this.gl.viewport(0, 0, width, height);
-        blit(frame.object);
+    set intensity(value) {
+        this.gl.uniform1f(this.uniforms["intensity"], value);
     }
 }
 
 
-export class SunraysMask extends BaseProgram {
+export class SunraysMask extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, sunraysMaskShader);
     }
 
-    apply(frame1, frame2) {
-        this.gl.disable(this.gl.BLEND);
-
-        this.bind();
-
-        this.gl.uniform1i(this.uniforms["uTexture"], frame1.attach(0));
-        this.gl.viewport(0, 0, frame2.width, frame2.height);
-        blit(frame2.object);
+    set texture(identifier) {
+        this.gl.uniform1i(this.uniforms["uTexture"], identifier);
     }
 }
 
 
-export class Sunrays extends BaseProgram {
+export class Sunrays extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, sunraysShader);
     }
 
-    apply(frame1, frame2, weight) {
-        this.bind();
+    set texture(identifier) {
+        this.gl.uniform1i(this.uniforms["uTexture"], identifier);
+    }
 
-        this.gl.uniform1f(this.uniforms["weight"], weight);
-        this.gl.uniform1i(this.uniforms["uTexture"], frame2.attach(0));
-        this.gl.viewport(0, 0, frame1.width, frame1.height);
-        blit(frame1.object);
+    set weight(value) {
+        this.gl.uniform1f(this.uniforms["weight"], value);
     }
 }
 
 
-export class Blur extends BaseProgram {
+export class Blur extends Base {
 
     constructor(gl) {
         super(gl, blurVertexShader, blurShader);
     }
 
-    apply(frame1, frame2, iterations) {
-        this.bind();
-
-        for (let i = 0; i < iterations; i++) {
-            this.gl.uniform2f(this.uniforms["texelSize"], frame1.texel.width, 0.0);
-            this.gl.uniform1i(this.uniforms["uTexture"], frame1.attach(0));
-            blit(frame2.object);
-
-            this.gl.uniform2f(this.uniforms["texelSize"], 0.0, frame1.texel.height);
-            this.gl.uniform1i(this.uniforms["uTexture"], frame2.attach(0));
-            blit(frame1.object);
-        }
+    set texture(identifier) {
+        this.gl.uniform1i(this.uniforms["uTexture"], identifier);
     }
 }
 
 
-export class Color extends BaseProgram {
+export class Color extends Base {
 
     constructor(gl) {
         super(gl, baseVertexShader, colorShader);
     }
 
-    apply(buffer, color) {
-        this.bind();
-
-        this.gl.uniform4f(this.uniforms["color"], color.r, color.g, color.b, 1);
-        blit(buffer);
+    set color(values) {
+        this.gl.uniform4f(this.uniforms["color"], ...values);
     }
 }
 
 
-export class CheckerBoard extends BaseProgram {
+export class Display extends utility.ContextMixin {
 
-    constructor(gl) {
-        super(gl, baseVertexShader, checkerboardShader);
-    }
-
-    apply(buffer) {
-        const {width, height} = this.gl.canvas;
-
-        this.bind();
-
-        this.gl.uniform1f(this.uniforms["aspectRatio"], width / height);
-        blit(buffer);
-    }
-}
-
-
-export class Display extends Base {
-
-    constructor(gl, shadingEnabled, bloomEnabled, sunraysEnabled) {
+    constructor(gl, config) {
         super(gl);
 
-        this._shadingEnabled = shadingEnabled;
-        this._bloomEnabled = bloomEnabled;
-        this._sunraysEnabled = sunraysEnabled;
-
-        this._vertex = this.createVertex(baseVertexShader);
+        this._vertex = loadVertexShader(gl, baseVertexShader);
 
         this._programs = {};
         this._current_hash = null;
         this._uniforms = {};
 
-        // Initiate material.
-        this.update(shadingEnabled, bloomEnabled, sunraysEnabled)
+        // Create fragment shader depending to config.
+        this.update(config);
     }
 
-    update(shadingEnabled, bloomEnabled, sunraysEnabled) {
-        this._shadingEnabled = shadingEnabled;
-        this._bloomEnabled = bloomEnabled;
-        this._sunraysEnabled = sunraysEnabled;
-
+    update(config) {
         let hash = 0;
-        const materialKeywords = [];
+        const keywords = [];
 
-        if (shadingEnabled) {
-            materialKeywords.push("SHADING");
-        }
-        if (bloomEnabled) {
-            materialKeywords.push("BLOOM");
-        }
-        if (sunraysEnabled) {
-            materialKeywords.push("SUNRAYS");
-        }
+        if (config.shadingEnabled) { keywords.push("SHADING"); }
+        if (config.bloomEnabled) { keywords.push("BLOOM"); }
+        if (config.sunraysEnabled) { keywords.push("SUNRAYS"); }
 
-        materialKeywords.forEach((keyword) => {
+        keywords.forEach((keyword) => {
             hash += hashCode(keyword);
         });
 
         let program = this._programs[hash];
         if (!program) {
-            const fragment = this.createFragment(displayShaderSource);
+            const fragment = loadFragmentShader(this.gl, displayShaderSource, keywords);
             program = createProgram(this.gl, this._vertex, fragment);
             this._programs[hash] = program;
         }
 
         if (this._current_hash !== hash) {
             this._current_hash = hash;
-            this._uniforms = getUniforms(
-                this.gl, this._programs[this._current_hash]
-            );
+            this._uniforms = getUniforms(this.gl, this._programs[this._current_hash]);
         }
     }
 
-    apply(fbo, dye, bloom, sunrays, ditheringTexture, width, height) {
-        this.gl.useProgram(this._programs[this._current_hash]);
+    set texelSize(size) {
+        this.gl.uniform2f(this.uniforms["texelSize"], size.width, size.height);
+    }
 
-        if (this._shadingEnabled) {
-            this.gl.uniform2f(this._uniforms["texelSize"], 1.0 / width, 1.0 / height);
-        }
+    set texture(identifier) {
+        this.gl.uniform1i(this._uniforms["uTexture"], identifier);
+    }
 
-        this.gl.uniform1i(this._uniforms["uTexture"], dye.read.attach(0));
+    set bloom(identifier) {
+        this.gl.uniform1i(this._uniforms["uBloom"], identifier);
+    }
 
-        if (this._bloomEnabled) {
-            this.gl.uniform1i(this._uniforms["uBloom"], bloom.attach(1));
-            this.gl.uniform1i(this._uniforms["uDithering"], ditheringTexture.attach(2));
-            let scale = getTextureScale(ditheringTexture, width, height);
-            this.gl.uniform2f(this._uniforms["ditherScale"], scale.x, scale.y);
-        }
+    set sunrays(identifier) {
+        this.gl.uniform1i(this._uniforms["uSunrays"], identifier);
+    }
 
-        if (this._sunraysEnabled) {
-            this.gl.uniform1i(this._uniforms["uSunrays"], sunrays.attach(3));
-        }
+    set dithering(identifier) {
+        this.gl.uniform1i(this._uniforms["uDithering"], identifier);
+    }
 
-        blit(fbo);
+    set ditherScale(scale) {
+        this.gl.uniform2f(this._uniforms["ditherScale"], scale.x, scale.y);
     }
 }
 
@@ -536,6 +387,16 @@ const createProgram = (gl, vertexShader, fragmentShader) => {
     }
 
     return shaderProgram;
+};
+
+
+const loadVertexShader = (gl, source) => {
+    return loadShader(gl, gl.VERTEX_SHADER, source);
+};
+
+
+const loadFragmentShader = (gl, source, keywords = null) => {
+    return loadShader(gl, gl.FRAGMENT_SHADER, source, keywords);
 };
 
 
@@ -575,44 +436,12 @@ const getUniforms = (gl, program) => {
 };
 
 
-const blit = (gl, destination) => {
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]),
-        gl.STATIC_DRAW
-    );
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(
-        gl.ELEMENT_ARRAY_BUFFER,
-        new Uint16Array([0, 1, 2, 0, 2, 3]),
-        gl.STATIC_DRAW
-    );
-
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(0);
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, destination);
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-};
-
-
-
 const correctRadius = (canvas, radius) => {
     const aspectRatio = canvas.width / canvas.height;
     if (aspectRatio > 1) {
         return radius * aspectRatio;
     }
     return radius;
-};
-
-
-const getTextureScale = (texture, width, height) => {
-    return {
-        x: width / texture.width,
-        y: height / texture.height
-    };
 };
 
 

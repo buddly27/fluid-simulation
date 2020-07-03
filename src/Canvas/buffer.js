@@ -1,12 +1,15 @@
+import * as utility from "./utility";
 import LDR_LLL1_0 from "./texture/LDR_LLL1_0.png";
 
 
-class Frame {
+export class Frame extends utility.ContextMixin {
 
-    constructor(gl, width, height, internalFormat, format, texType, filtering) {
-        this._gl = gl;
-        this._width = width;
-        this._height = height;
+    constructor(gl, size, channels, texType, filtering) {
+        super(gl);
+
+        this._width = size.width;
+        this._height = size.height;
+        const {internalFormat, format} = channels;
 
         gl.activeTexture(gl.TEXTURE0);
 
@@ -50,7 +53,7 @@ class Frame {
         return this._height;
     }
 
-    get texel() {
+    get texelSize() {
         return {
             width: 1.0 / this._width,
             height: 1.0 / this._height,
@@ -58,26 +61,18 @@ class Frame {
     }
 
     attach(identifier) {
-        this._gl.activeTexture(this._gl.TEXTURE0 + identifier);
-        this._gl.bindTexture(this._gl.TEXTURE_2D, this._texture);
+        this.gl.activeTexture(this.gl.TEXTURE0 + identifier);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this._texture);
         return identifier;
     }
 }
 
 
-class DoubleFrame {
+export class DoubleFrame {
 
-    constructor(gl, width, height, internalFormat, format, texType, filtering) {
-        this._buffer1 = new Frame(
-            gl, width, height,
-            internalFormat, format,
-            texType, filtering
-        );
-        this._buffer2 = new Frame(
-            gl, width, height,
-            internalFormat, format,
-            texType, filtering
-        );
+    constructor(gl, size, channels, texType, filtering) {
+        this._buffer1 = new Frame(gl, size, channels, texType, filtering);
+        this._buffer2 = new Frame(gl, size, channels, texType, filtering);
     }
 
     get width() {
@@ -88,8 +83,8 @@ class DoubleFrame {
         return this._buffer1.height;
     }
 
-    get texel() {
-        return this._buffer1.texel;
+    get texelSize() {
+        return this._buffer1.texelSize;
     }
 
     get buffer1() {
@@ -108,10 +103,11 @@ class DoubleFrame {
 }
 
 
-export class Texture {
+export class Texture extends utility.ContextMixin {
 
     constructor(gl) {
-        this._gl = gl;
+        super(gl);
+
         this._width = 1;
         this._height = 1;
 
@@ -151,89 +147,8 @@ export class Texture {
     }
 
     attach(identifier) {
-        this._gl.activeTexture(this._gl.TEXTURE0 + identifier);
-        this._gl.bindTexture(this._gl.TEXTURE_2D, this._texture);
+        this.gl.activeTexture(this.gl.TEXTURE0 + identifier);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this._texture);
         return identifier;
-    }
-}
-
-
-export class Dye extends DoubleFrame {
-
-    constructor(gl, size, ext) {
-        const {width, height} = size;
-        const {internalFormat, format} = ext.formatRGBA;
-        const texType = ext.halfFloatTexType;
-        const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
-        super(gl, width, height, internalFormat, format, texType, filtering);
-    }
-}
-
-
-export class Velocity extends DoubleFrame {
-
-    constructor(gl, size, ext) {
-        const {width, height} = size;
-        const {internalFormat, format} = ext.formatRG;
-        const texType = ext.halfFloatTexType;
-        const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
-        super(gl, width, height, internalFormat, format, texType, filtering);
-    }
-}
-
-
-export class Divergence extends Frame {
-
-    constructor(gl, size, ext) {
-        const {width, height} = size;
-        const {internalFormat, format} = ext.formatR;
-        const texType = ext.halfFloatTexType;
-        super(gl, width, height, internalFormat, format, texType, gl.NEAREST);
-    }
-}
-
-
-export class Curl extends Frame {
-
-    constructor(gl, size, ext) {
-        const {width, height} = size;
-        const {internalFormat, format} = ext.formatR;
-        const texType = ext.halfFloatTexType;
-        super(gl, width, height, internalFormat, format, texType, gl.NEAREST);
-    }
-}
-
-
-export class Pressure extends DoubleFrame {
-
-    constructor(gl, size, ext) {
-        const {width, height} = size;
-        const {internalFormat, format} = ext.formatR;
-        const texType = ext.halfFloatTexType;
-        super(gl, width, height, internalFormat, format, texType, gl.NEAREST);
-    }
-}
-
-
-export class Bloom extends Frame {
-
-    constructor(gl, size, ext) {
-        const {width, height} = size;
-        const {internalFormat, format} = ext.formatRGBA;
-        const texType = ext.halfFloatTexType;
-        const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
-        super(gl, width, height, internalFormat, format, texType, filtering);
-    }
-}
-
-
-export class Sunrays extends Frame {
-
-    constructor(gl, size, ext) {
-        const {width, height} = size;
-        const {internalFormat, format} = ext.formatR;
-        const texType = ext.halfFloatTexType;
-        const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
-        super(gl, width, height, internalFormat, format, texType, filtering);
     }
 }
