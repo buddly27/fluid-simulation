@@ -377,7 +377,6 @@ export class Display extends utility.ContextMixin {
     bind() {
         this.gl.useProgram(this._programs[this._current_hash]);
     }
-
 }
 
 
