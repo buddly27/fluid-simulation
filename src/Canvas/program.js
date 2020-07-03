@@ -351,7 +351,7 @@ export class Display extends utility.ContextMixin {
     }
 
     set texelSize(size) {
-        this.gl.uniform2f(this.uniforms["texelSize"], size.width, size.height);
+        this.gl.uniform2f(this._uniforms["texelSize"], size.width, size.height);
     }
 
     set texture(identifier) {
@@ -373,6 +373,11 @@ export class Display extends utility.ContextMixin {
     set ditherScale(scale) {
         this.gl.uniform2f(this._uniforms["ditherScale"], scale.x, scale.y);
     }
+
+    bind() {
+        this.gl.useProgram(this._programs[this._current_hash]);
+    }
+
 }
 
 
