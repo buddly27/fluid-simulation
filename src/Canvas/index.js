@@ -42,7 +42,6 @@ export default function Canvas(props) {
         if (graphRef.current === null) {
             const {gl, ext} = utility.getContext(canvas);
             graphRef.current = new controller.Graph(gl, ext, props);
-            utility.resizeCanvas(canvas);
         }
 
         return graphRef.current;
@@ -79,8 +78,13 @@ export default function Canvas(props) {
 
     // Deal with animated frames.
     const animate = (timestamp) => {
+        const canvas = fetchCanvas();
         const pointer = fetchPointer();
         const graph = fetchGraph();
+
+        if (utility.resizeCanvas(canvas)) {
+            graph.resize();
+        }
 
         const deltaTime = Math.min(timestamp / 1000, 0.016666);
 

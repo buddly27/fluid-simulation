@@ -1,6 +1,7 @@
 import * as utility from "./utility.js"
 import * as buffer from "./buffer.js"
 import * as program from "./program.js"
+import {DoubleFrame} from "./buffer";
 
 
 export class Pointer {
@@ -101,7 +102,7 @@ export class Graph extends utility.ContextMixin {
         }
     }
 
-    initializeBuffers() {
+    initializeBuffers(dyeBuffer = null, velocityBuffer = null) {
         const dyeSize = utility.getBufferSize(this.gl, this._config.dyeResolution);
         const simSize = utility.getBufferSize(this.gl, this._config.simResolution);
         const sunraysSize = utility.getBufferSize(this.gl, 256);
@@ -109,14 +110,15 @@ export class Graph extends utility.ContextMixin {
 
         const {halfFloatTexType, formatRGBA, formatRG, formatR} = this._ext;
 
+        // Create all other buffers.
         const buffers = {
-            dye: new buffer.DoubleFrame(
-                this.gl, dyeSize, formatRGBA, halfFloatTexType,
-                this._ext.supportLinearFiltering ? this.gl.LINEAR : this.gl.NEAREST
+            dye: this._createResizableBuffer(
+                dyeBuffer, dyeSize, formatRGBA, halfFloatTexType,
+                this._ext.supportLinearFiltering ? this.gl.LINEAR : this.gl.NEAREST,
             ),
-            velocity: new buffer.DoubleFrame(
-                this.gl, simSize, formatRG, halfFloatTexType,
-                this._ext.supportLinearFiltering ? this.gl.LINEAR : this.gl.NEAREST
+            velocity: this._createResizableBuffer(
+                velocityBuffer, simSize, formatRG, halfFloatTexType,
+                this._ext.supportLinearFiltering ? this.gl.LINEAR : this.gl.NEAREST,
             ),
             divergence: new buffer.Frame(
                 this.gl, simSize, formatR, halfFloatTexType, this.gl.NEAREST
@@ -157,6 +159,23 @@ export class Graph extends utility.ContextMixin {
         }
 
         return buffers;
+    }
+
+    _createResizableBuffer(target, size, channels, texType, filtering) {
+        const frame = new DoubleFrame(this.gl, size, channels, texType, filtering);
+        if (target !== null) {
+            this._program.copy.bind();
+            this._program.texture = target.buffer1.attach(0);
+            this.blit(frame.buffer1.object);
+        }
+
+        return frame;
+    }
+
+    resize() {
+        this._buffer = this.initializeBuffers(
+            this._buffer.dye, this._buffer.velocity,
+        );
     }
 
     update(config) {
