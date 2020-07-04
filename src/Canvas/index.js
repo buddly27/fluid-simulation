@@ -69,8 +69,8 @@ export default function Canvas(props) {
 
         if (pointer.current.isDown() && pointer.current.isMoving()) {
             const delta = pointer.current.delta;
-            delta.x *= config.splatForce;
-            delta.y *= config.splatForce;
+            delta.x *= config.current.splatForce;
+            delta.y *= config.current.splatForce;
 
             graph.current.processInput(
                 pointer.current.position, delta, pointer.current.color
