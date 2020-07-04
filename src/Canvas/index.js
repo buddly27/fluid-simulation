@@ -75,7 +75,7 @@ export default function Canvas(props) {
             graph.current.processInput(
                 pointer.current.position, delta, pointer.current.color
             );
-            pointer.resetDelta();
+            pointer.current.resetDelta();
         }
 
         if (!props.animationPaused) {

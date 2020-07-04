@@ -180,13 +180,13 @@ export class Graph extends utility.ContextMixin {
         this._program.splat.point = [position.x, position.y];
         this._program.splat.color = [delta.x, delta.y, 0.0];
         this._program.splat.radius = this._config.splatRadius;
-        this.blit(this.gl, this._buffer.velocity.buffer2.object);
+        this.blit(this._buffer.velocity.buffer2.object);
         this._buffer.velocity.swap();
 
         this.gl.viewport(0, 0, this._buffer.dye.width, this._buffer.dye.height);
         this._program.splat.target = this._buffer.dye.buffer1.attach(0);
         this._program.splat.color = [color.red, color.green, color.blue];
-        this.blit(this.gl, this._buffer.dye.buffer2.object);
+        this.blit(this._buffer.dye.buffer2.object);
         this._buffer.dye.swap();
     }
 
