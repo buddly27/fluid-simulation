@@ -10,7 +10,7 @@ import AppDrawer from "../AppDrawer/index.js";
 
 export default function App() {
     const [state, setState] = React.useState({
-        drawerOpened: true,
+        drawerOpened: false,
         dyeResolution: 1024,
         simResolution: 128,
         densityDiffusion: 1.0,
