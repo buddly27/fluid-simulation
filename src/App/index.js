@@ -34,34 +34,22 @@ export default function App() {
         densityDiffusion: 1.0,
         velocityDiffusion: 0.2,
         pressure: 0.8,
+        pressureIterations: 20,
         vorticity: 30.0,
         splatRadius: 0.25,
+        splatForce: 6000,
         shadingEnabled: true,
         animationPaused: false,
         bloomEnabled: true,
+        bloomIterations: 8,
         bloomIntensity: 0.8,
         bloomThreshold: 0.6,
+        bloomSoftKnee: 0.7,
         sunraysEnabled: true,
         sunraysWeight: 1
     });
 
-    const {
-        drawerOpened,
-        dyeResolution,
-        simResolution,
-        densityDiffusion,
-        velocityDiffusion,
-        pressure,
-        vorticity,
-        splatRadius,
-        shadingEnabled,
-        animationPaused,
-        bloomEnabled,
-        bloomIntensity,
-        bloomThreshold,
-        sunraysEnabled,
-        sunraysWeight,
-    } = state;
+    const {drawerOpened, animationPaused} = state;
 
     return (
         <div>
@@ -104,33 +92,14 @@ export default function App() {
 
             <AppDrawer
                 open={drawerOpened}
-                settings={state}
+                {...state}
                 onSettingChange={
                     (key, value) =>
                         setState(prevState => ({...prevState, [key]: value}))
                 }
             />
 
-            <Canvas
-                dyeResolution={dyeResolution}
-                simResolution={simResolution}
-                densityDiffusion={densityDiffusion}
-                velocityDiffusion={velocityDiffusion}
-                pressure={pressure}
-                pressureIterations={20}
-                vorticity={vorticity}
-                splatRadius={splatRadius}
-                splatForce={6000}
-                shadingEnabled={shadingEnabled}
-                animationPaused={animationPaused}
-                bloomEnabled={bloomEnabled}
-                bloomIntensity={bloomIntensity}
-                bloomThreshold={bloomThreshold}
-                bloomIterations={8}
-                bloomSoftKnee={0.7}
-                sunraysEnabled={sunraysEnabled}
-                sunraysWeight={sunraysWeight}
-            />
+            <Canvas {...state} />
         </div>
     );
 }

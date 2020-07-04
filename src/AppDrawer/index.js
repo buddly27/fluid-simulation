@@ -35,8 +35,8 @@ const useStyles = makeStyles((theme) => ({
 
 export default function AppDrawer(props) {
     const classes = useStyles(props);
-    const {open, settings, onSettingChange} = props;
     const {
+        open,
         dyeResolution,
         simResolution,
         densityDiffusion,
@@ -49,8 +49,9 @@ export default function AppDrawer(props) {
         bloomIntensity,
         bloomThreshold,
         sunraysEnabled,
-        sunraysWeight
-    } = settings;
+        sunraysWeight,
+        onSettingChange
+    } = props;
 
     return (
         <Drawer
