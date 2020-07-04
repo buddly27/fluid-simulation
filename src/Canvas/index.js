@@ -24,12 +24,14 @@ export default function Canvas(props) {
     const classes = useStyles();
 
     const canvasRef = React.useRef(null);
+    const configRef = React.useRef(props);
     const requestRef = React.useRef(null);
     const graphRef = React.useRef(null);
     const pointerRef = React.useRef(null);
 
     // Fetch mutable elements from references.
     const fetchCanvas = () => canvasRef.current;
+    const fetchConfig = () => configRef.current;
     const fetchPointer = () => {
         if (pointerRef.current === null) {
             pointerRef.current = new controller.Pointer();
@@ -38,10 +40,11 @@ export default function Canvas(props) {
     };
     const fetchGraph = () => {
         const canvas = fetchCanvas();
+        const config = fetchConfig();
 
         if (graphRef.current === null) {
             const {gl, ext} = utility.getContext(canvas);
-            graphRef.current = new controller.Graph(gl, ext, props);
+            graphRef.current = new controller.Graph(gl, ext, config);
         }
 
         return graphRef.current;
@@ -79,6 +82,7 @@ export default function Canvas(props) {
     // Deal with animated frames.
     const animate = (timestamp) => {
         const canvas = fetchCanvas();
+        const config = fetchConfig();
         const pointer = fetchPointer();
         const graph = fetchGraph();
 
@@ -88,14 +92,14 @@ export default function Canvas(props) {
 
         if (pointer.isDown() && pointer.isMoving()) {
             const delta = pointer.delta;
-            delta.x *= props.splatForce || 6000;
-            delta.y *= props.splatForce || 6000;
+            delta.x *= config.splatForce || 6000;
+            delta.y *= config.splatForce || 6000;
 
             graph.processInput(pointer.position, delta, pointer.color);
             pointer.resetDelta();
         }
 
-        if (!props.animationPaused) {
+        if (!config.animationPaused) {
             const deltaTime = Math.min(timestamp / 1000, 0.016666);
             graph.processDelta(deltaTime);
         }
@@ -109,6 +113,14 @@ export default function Canvas(props) {
         requestRef.current = window.requestAnimationFrame(animate);
         return () => window.cancelAnimationFrame(requestRef.current);
     }, []);
+
+     // Handle props update.
+    React.useEffect(() => {
+        configRef.current = props;
+        const graph = fetchGraph();
+        graph.update(configRef.current);
+
+    }, [props]);
 
     return (
         <canvas
