@@ -3,6 +3,64 @@ import * as buffer from "./buffer.js"
 import * as program from "./program.js"
 
 
+export class Pointer {
+
+    constructor() {
+        this._position = {x: 0, y: 0};
+        this._delta = {x: 0, y: 0};
+        this._isDown = false;
+        this._color = {red: 0, green: 0, blue: 0};
+    }
+
+    get position() {
+        return this._position;
+    }
+
+    get delta() {
+        return this._delta;
+    }
+
+    get color() {
+        return this._color;
+    }
+
+    isDown() {
+        return this._isDown;
+    }
+
+    isMoving() {
+        return Math.abs(this._delta.x) > 0 || Math.abs(this._delta.y) > 0;
+    }
+
+    resetDelta() {
+        this._delta = {x: 0, y: 0};
+    }
+
+    setDown(point) {
+        this._position = point;
+        this._delta = {x: 0, y: 0};
+        this._color = utility.generateColor();
+        this._isDown = true;
+    }
+
+    move(point, ratio) {
+        const previousPosition = this._position;
+        this._position = point;
+        this._delta = {
+            x: this._position.x - previousPosition.x,
+            y: this._position.y - previousPosition.y,
+        };
+
+        if (ratio < 1) { this._delta.x *= ratio; }
+        if (ratio > 1) { this._delta.y /= ratio; }
+    }
+
+    setUp() {
+        this._isDown = false;
+    }
+}
+
+
 export class Graph extends utility.ContextMixin {
 
     constructor(gl, ext, config) {
@@ -111,7 +169,7 @@ export class Graph extends utility.ContextMixin {
         this._config = config;
     }
 
-    processInput(x, y, dx, dy, color) {
+    processInput(position, delta, color) {
         const {width, height} = this.gl.canvas;
 
         this.gl.viewport(0, 0, this._buffer.velocity.width, this._buffer.velocity.height);
@@ -119,8 +177,8 @@ export class Graph extends utility.ContextMixin {
         this._program.splat.bind();
         this._program.splat.target = this._buffer.velocity.buffer1.attach(0);
         this._program.splat.ratio = width / height;
-        this._program.splat.point = [x, y];
-        this._program.splat.color = [dx, dy, 0.0];
+        this._program.splat.point = [position.x, position.y];
+        this._program.splat.color = [delta.x, delta.y, 0.0];
         this._program.splat.radius = this._config.splatRadius;
         this.blit(this.gl, this._buffer.velocity.buffer2.object);
         this._buffer.velocity.swap();

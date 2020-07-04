@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+
 import React from "react";
 import {makeStyles} from "@material-ui/core/styles";
 import * as controller from "./controller.js"
@@ -23,135 +25,81 @@ export default function Canvas(props) {
     const classes = useStyles();
 
     const canvas = React.useRef(null);
-    const [state, setState] = React.useState({
-        graph: null,
-        updateTime: Date.now(),
-        colorTime: 0.0,
-        pointers: []
+    const request = React.useRef(null);
+    const graph = React.useRef(null);
+    const pointer = React.useRef(new controller.Pointer());
+    const config = React.useRef({
+        ...props,
+        splatForce: 6000,
+        bloomIterations: 8,
+        pressureIterations: 20,
+        bloomSoftKnee: 0.7
     });
 
-    const {gl, graph, updateTime, colorTime, pointers} = state;
-    const {settings} = props;
+    const onMouseDown = (event) => {
+        const gl = graph.current.gl;
+        const {offsetX, offsetY} = event;
+        const point = utility.getPointerPosition(gl, offsetX, offsetY);
+        pointer.current.setDown(point);
+    };
 
-    // Initialize GL context.
-    const onInitiate = React.useCallback(() => {
-        const {gl, ext} = utility.getContext(canvas);
-        const config = {
-            ...settings,
-            bloomIterations: 8,
-            pressureIterations: 20,
-            bloomSoftKnee: 0.7
-        };
-
-        const graph = new controller.Graph(gl, ext, config);
-
-        setState(prevState => ({...prevState, graph}));
-
-    }, [canvas, settings]);
-
-    // Render scene.
-    const onRender = React.useCallback(() => {
-        if (!gl || !graph)
+    const onMouseMove = (event) => {
+        if (!pointer.current.isDown()) {
             return;
+        }
 
+        const gl = graph.current.gl;
+        const {offsetX, offsetY} = event;
+        const point = utility.getPointerPosition(gl.canvas, offsetX, offsetY);
+        const ratio = gl.canvas.width / gl.canvas.height;
+        pointer.current.move(point, ratio);
+    };
 
+    const onMouseUp = () => {
+        pointer.current.setUp();
+    };
 
-        // setState(prevState => ({...prevState, ...state}));
-        //
-        // render(gl);
+    const animate = (timestamp) => {
+        if (graph.current === null) {
+            const {gl, ext} = utility.getContext(canvas);
+            graph.current = new controller.Graph(gl, ext, config.current);
+        }
 
-    }, [gl, graph, updateTime, colorTime, pointers]);
+        const deltaTime = Math.min(timestamp / 1000, 0.016666);
 
-    // Handle resizing event.
-    React.useEffect(() => {
-        window.addEventListener("resize", onRender);
-        return () => window.removeEventListener("resize", onRender);
-    }, [onRender]);
+        if (pointer.current.isDown() && pointer.current.isMoving()) {
+            const delta = pointer.current.delta;
+            delta.x *= config.splatForce;
+            delta.y *= config.splatForce;
 
-    // Handle state initialization.
-    React.useEffect(() => onInitiate(), [canvas, onInitiate]);
+            graph.current.processInput(
+                pointer.current.position, delta, pointer.current.color
+            );
+            pointer.resetDelta();
+        }
+
+        if (!props.animationPaused) {
+            graph.current.processDelta(deltaTime);
+        }
+
+        graph.current.render();
+        request.current = requestAnimationFrame(animate);
+    };
 
     // Handle rendering.
-    React.useEffect(() => onRender(), [gl, onRender]);
+    React.useEffect(() => {
+        request.current = window.requestAnimationFrame(animate);
+        return () => window.cancelAnimationFrame(request.current);
+    }, []);
 
     return (
         <canvas
             ref={canvas}
             className={classes.canvas}
             tabIndex="0"
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseUp={onMouseUp}
         />
     )
 }
-
-
-const render = (gl, updateTime, colorTime, colorEnabled, pointers) => {
-
-    // const now = Date.now();
-    // const deltaTime = Math.min((now - updateTime) / 1000, 0.016666);
-    //
-    // utility.resizeCanvas(gl.canvas);
-    // const state = updateColors(deltaTime, colorTime, colorEnabled, pointers);
-
-};
-
-
-const computeDeltaTime = (updateTime) => {
-    const now = Date.now();
-    return Math.min((now - updateTime) / 1000, 0.016666);
-};
-
-
-const updateColors = (deltaTime, colorTime, colorEnabled, pointers) => {
-    let _colorTime = colorTime + deltaTime * 10.0;
-    if (_colorTime >= 1) {
-        _colorTime = utility.wrap(_colorTime, 0, 1);
-        pointers.forEach(pointer => {
-            pointer.color = utility.generateColor();
-        });
-    }
-
-    return {
-        colorTime: _colorTime,
-        pointers,
-    }
-};
-
-
-const applyInputs = (
-    splatStack,
-    pointers,
-    program,
-    buffers,
-    splatRadius,
-    splatForce
-) => {
-    if (splatStack.length > 0) {
-        const amount = splatStack.pop();
-        for (let i = 0; i < amount; i++) {
-            const color = utility.generateColor();
-            color.r *= 10.0;
-            color.g *= 10.0;
-            color.b *= 10.0;
-            const x = Math.random();
-            const y = Math.random();
-            const dx = 1000 * (Math.random() - 0.5);
-            const dy = 1000 * (Math.random() - 0.5);
-            program.splat.apply(
-                buffers.dye, buffers.velocity, splatRadius,
-                x, y, dx, dy, color
-            );
-        }
-    }
-
-    pointers.forEach(pointer => {
-        if (pointer.moved) {
-            pointer.moved = false;
-            let dx = pointer.deltaX * splatForce;
-            let dy = pointer.deltaY * splatForce;
-            program.splat.apply(
-                buffers.dye, buffers.velocity, splatRadius,
-                pointer.texcoordX, pointer.texcoordY, dx, dy, pointer.color
-            );
-        }
-    });
-};

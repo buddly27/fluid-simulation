@@ -119,6 +119,14 @@ export const getTextureScale = (texture, width, height) => {
 };
 
 
+export const getPointerPosition = (canvas, x, y) => {
+    return {
+        x: scaleByPixelRatio(x) / canvas.width,
+        y: 1.0 - scaleByPixelRatio(y) / canvas.height,
+    };
+};
+
+
 export const getBufferSize = (gl, resolution) => {
     let aspectRatio = gl.drawingBufferWidth / gl.drawingBufferHeight;
     if (aspectRatio < 1)
