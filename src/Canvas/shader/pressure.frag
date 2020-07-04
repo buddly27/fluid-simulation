@@ -1,13 +1,15 @@
 precision mediump float;
 precision mediump sampler2D;
 
+uniform sampler2D uPressure;
+uniform sampler2D uDivergence;
+
 varying highp vec2 vUv;
 varying highp vec2 vL;
 varying highp vec2 vR;
 varying highp vec2 vT;
 varying highp vec2 vB;
-uniform sampler2D uPressure;
-uniform sampler2D uDivergence;
+
 
 void main () {
     float L = texture2D(uPressure, vL).x;

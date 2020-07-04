@@ -1,15 +1,17 @@
 precision highp float;
 precision highp sampler2D;
 
+uniform sampler2D uVelocity;
+uniform sampler2D uCurl;
+uniform float curl;
+uniform float dt;
+
 varying vec2 vUv;
 varying vec2 vL;
 varying vec2 vR;
 varying vec2 vT;
 varying vec2 vB;
-uniform sampler2D uVelocity;
-uniform sampler2D uCurl;
-uniform float curl;
-uniform float dt;
+
 
 void main () {
     float L = texture2D(uCurl, vL).x;

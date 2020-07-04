@@ -1,13 +1,15 @@
 precision highp float;
 precision highp sampler2D;
 
-varying vec2 vUv;
 uniform sampler2D uVelocity;
 uniform sampler2D uSource;
 uniform vec2 texelSize;
 uniform vec2 dyeTexelSize;
 uniform float dt;
 uniform float dissipation;
+
+varying vec2 vUv;
+
 
 vec4 bilerp (sampler2D sam, vec2 uv, vec2 tsize) {
     vec2 st = uv / tsize - 0.5;
@@ -22,6 +24,7 @@ vec4 bilerp (sampler2D sam, vec2 uv, vec2 tsize) {
 
     return mix(mix(a, b, fuv.x), mix(c, d, fuv.x), fuv.y);
 }
+
 
 void main () {
     #ifdef MANUAL_FILTERING

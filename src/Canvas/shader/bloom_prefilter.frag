@@ -1,10 +1,12 @@
 precision mediump float;
 precision mediump sampler2D;
 
-varying vec2 vUv;
 uniform sampler2D uTexture;
 uniform vec3 curve;
 uniform float threshold;
+
+varying vec2 vUv;
+
 
 void main () {
     vec3 c = texture2D(uTexture, vUv).rgb;

@@ -1,8 +1,10 @@
 precision highp float;
 precision highp sampler2D;
 
-varying vec2 vUv;
 uniform sampler2D uTexture;
+
+varying vec2 vUv;
+
 
 void main () {
     vec4 c = texture2D(uTexture, vUv);

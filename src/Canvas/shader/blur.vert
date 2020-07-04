@@ -1,10 +1,13 @@
 precision highp float;
 
+uniform vec2 texelSize;
+
 attribute vec2 aPosition;
+
 varying vec2 vUv;
 varying vec2 vL;
 varying vec2 vR;
-uniform vec2 texelSize;
+
 
 void main () {
     vUv = aPosition * 0.5 + 0.5;
