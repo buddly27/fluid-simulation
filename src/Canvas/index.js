@@ -115,6 +115,7 @@ export default function Canvas(props) {
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
+            onMouseLeave={onMouseUp}
         />
     )
 }
