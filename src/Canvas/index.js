@@ -23,78 +23,93 @@ const useStyles = makeStyles(() => ({
 export default function Canvas(props) {
     const classes = useStyles();
 
-    const canvas = React.useRef(null);
-    const request = React.useRef(null);
-    const graph = React.useRef(null);
-    const pointer = React.useRef(new controller.Pointer());
-    const config = React.useRef({
-        ...props,
-        splatForce: 6000,
-        bloomIterations: 8,
-        pressureIterations: 20,
-        bloomSoftKnee: 0.7
-    });
+    const canvasRef = React.useRef(null);
+    const requestRef = React.useRef(null);
+    const graphRef = React.useRef(null);
+    const pointerRef = React.useRef(null);
 
+    // Fetch mutable elements from references.
+    const fetchCanvas = () => canvasRef.current;
+    const fetchPointer = () => {
+        if (pointerRef.current === null) {
+            pointerRef.current = new controller.Pointer();
+        }
+        return pointerRef.current;
+    };
+    const fetchGraph = () => {
+        const canvas = fetchCanvas();
+
+        if (graphRef.current === null) {
+            const {gl, ext} = utility.getContext(canvas);
+            graphRef.current = new controller.Graph(gl, ext, props);
+            utility.resizeCanvas(canvas);
+        }
+
+        return graphRef.current;
+    };
+
+    // Deal with mouse events.
     const onMouseDown = (event) => {
-        const gl = graph.current.gl;
+        const pointer = fetchPointer();
+        const canvas = fetchCanvas();
+
         const {offsetX, offsetY} = event.nativeEvent;
-        const point = utility.getPointerPosition(gl.canvas, offsetX, offsetY);
-        pointer.current.setDown(point);
+        const point = utility.getPointerPosition(canvas, offsetX, offsetY);
+        pointer.setDown(point);
     };
 
     const onMouseMove = (event) => {
-        if (!pointer.current.isDown()) {
+        const pointer = fetchPointer();
+        const canvas = fetchCanvas();
+
+        if (!pointer.isDown()) {
             return;
         }
 
-        const gl = graph.current.gl;
         const {offsetX, offsetY} = event.nativeEvent;
-        const point = utility.getPointerPosition(gl.canvas, offsetX, offsetY);
-        const ratio = gl.canvas.width / gl.canvas.height;
-        pointer.current.move(point, ratio);
+        const point = utility.getPointerPosition(canvas, offsetX, offsetY);
+        const ratio = canvas.width / canvas.height;
+        pointer.move(point, ratio);
     };
 
     const onMouseUp = () => {
-        pointer.current.setUp();
+        const pointer = fetchPointer();
+        pointer.setUp();
     };
 
+    // Deal with animated frames.
     const animate = (timestamp) => {
-        if (graph.current === null) {
-            const {gl, ext} = utility.getContext(canvas.current);
-            graph.current = new controller.Graph(gl, ext, config.current);
-            utility.resizeCanvas(canvas.current);
-        }
+        const pointer = fetchPointer();
+        const graph = fetchGraph();
 
         const deltaTime = Math.min(timestamp / 1000, 0.016666);
 
-        if (pointer.current.isDown() && pointer.current.isMoving()) {
-            const delta = pointer.current.delta;
-            delta.x *= config.current.splatForce;
-            delta.y *= config.current.splatForce;
+        if (pointer.isDown() && pointer.isMoving()) {
+            const delta = pointer.delta;
+            delta.x *= props.splatForce || 6000;
+            delta.y *= props.splatForce || 6000;
 
-            graph.current.processInput(
-                pointer.current.position, delta, pointer.current.color
-            );
-            pointer.current.resetDelta();
+            graph.processInput(pointer.position, delta, pointer.color);
+            pointer.resetDelta();
         }
 
         if (!props.animationPaused) {
-            graph.current.processDelta(deltaTime);
+            graph.processDelta(deltaTime);
         }
 
-        graph.current.render();
-        request.current = requestAnimationFrame(animate);
+        graph.render();
+        requestRef.current = requestAnimationFrame(animate);
     };
 
     // Handle rendering.
     React.useEffect(() => {
-        request.current = window.requestAnimationFrame(animate);
-        return () => window.cancelAnimationFrame(request.current);
+        requestRef.current = window.requestAnimationFrame(animate);
+        return () => window.cancelAnimationFrame(requestRef.current);
     }, []);
 
     return (
         <canvas
-            ref={canvas}
+            ref={canvasRef}
             className={classes.canvas}
             tabIndex="0"
             onMouseDown={onMouseDown}

@@ -87,14 +87,18 @@ export default function App() {
                 densityDiffusion={densityDiffusion}
                 velocityDiffusion={velocityDiffusion}
                 pressure={pressure}
+                pressureIterations={20}
                 vorticity={vorticity}
                 splatRadius={splatRadius}
+                splatForce={6000}
                 shadingEnabled={shadingEnabled}
                 colorEnabled={colorEnabled}
                 animationPaused={animationPaused}
                 bloomEnabled={bloomEnabled}
                 bloomIntensity={bloomIntensity}
                 bloomThreshold={bloomThreshold}
+                bloomIterations={8}
+                bloomSoftKnee={0.7}
                 sunraysEnabled={sunraysEnabled}
                 sunraysWeight={sunraysWeight}
             />
