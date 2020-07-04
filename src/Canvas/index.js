@@ -38,7 +38,7 @@ export default function Canvas(props) {
 
     const onMouseDown = (event) => {
         const gl = graph.current.gl;
-        const {offsetX, offsetY} = event;
+        const {offsetX, offsetY} = event.nativeEvent;
         const point = utility.getPointerPosition(gl, offsetX, offsetY);
         pointer.current.setDown(point);
     };
@@ -49,7 +49,7 @@ export default function Canvas(props) {
         }
 
         const gl = graph.current.gl;
-        const {offsetX, offsetY} = event;
+        const {offsetX, offsetY} = event.nativeEvent;
         const point = utility.getPointerPosition(gl.canvas, offsetX, offsetY);
         const ratio = gl.canvas.width / gl.canvas.height;
         pointer.current.move(point, ratio);
