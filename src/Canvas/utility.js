@@ -19,11 +19,11 @@ export const getContext = (canvas) => {
         preserveDrawingBuffer: false
     };
 
-    let gl = canvas.current.getContext("webgl2", params);
+    let gl = canvas.getContext("webgl2", params);
     const isWebGL2 = !!gl;
     if (!isWebGL2) {
-        gl = canvas.current.getContext("webgl", params)
-            || canvas.current.getContext("experimental-webgl", params);
+        gl = canvas.getContext("webgl", params)
+            || canvas.getContext("experimental-webgl", params);
     }
 
     let halfFloat;

@@ -13,7 +13,6 @@ const useStyles = makeStyles(() => ({
         position: "fixed",
         width: "100%",
         height: "100%",
-        objectFit: "contain",
         "&:focus": {
             outline: "none"
         }
@@ -39,7 +38,7 @@ export default function Canvas(props) {
     const onMouseDown = (event) => {
         const gl = graph.current.gl;
         const {offsetX, offsetY} = event.nativeEvent;
-        const point = utility.getPointerPosition(gl, offsetX, offsetY);
+        const point = utility.getPointerPosition(gl.canvas, offsetX, offsetY);
         pointer.current.setDown(point);
     };
 
@@ -61,8 +60,9 @@ export default function Canvas(props) {
 
     const animate = (timestamp) => {
         if (graph.current === null) {
-            const {gl, ext} = utility.getContext(canvas);
+            const {gl, ext} = utility.getContext(canvas.current);
             graph.current = new controller.Graph(gl, ext, config.current);
+            utility.resizeCanvas(canvas.current);
         }
 
         const deltaTime = Math.min(timestamp / 1000, 0.016666);
