@@ -179,7 +179,9 @@ export class Graph extends utility.ContextMixin {
         this._program.splat.ratio = width / height;
         this._program.splat.point = [position.x, position.y];
         this._program.splat.color = [delta.x, delta.y, 0.0];
-        this._program.splat.radius = this._config.splatRadius;
+        this._program.splat.radius = utility.correctRadius(
+            this.gl.canvas, this._config.splatRadius / 100.0
+        );
         this.blit(this._buffer.velocity.buffer2.object);
         this._buffer.velocity.swap();
 

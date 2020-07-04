@@ -68,7 +68,7 @@ export class Splat extends Base {
     }
 
     set radius(value) {
-        this.gl.uniform1f(this.uniforms["radius"], correctRadius(value / 100.0));
+        this.gl.uniform1f(this.uniforms["radius"], value);
     }
 }
 
@@ -437,15 +437,6 @@ const getUniforms = (gl, program) => {
     }
 
     return uniforms;
-};
-
-
-const correctRadius = (canvas, radius) => {
-    const aspectRatio = canvas.width / canvas.height;
-    if (aspectRatio > 1) {
-        return radius * aspectRatio;
-    }
-    return radius;
 };
 
 

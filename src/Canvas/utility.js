@@ -127,6 +127,15 @@ export const getPointerPosition = (canvas, x, y) => {
 };
 
 
+export const correctRadius = (canvas, radius) => {
+    const aspectRatio = canvas.width / canvas.height;
+    if (aspectRatio > 1) {
+        return radius * aspectRatio;
+    }
+    return radius;
+};
+
+
 export const getBufferSize = (gl, resolution) => {
     let aspectRatio = gl.drawingBufferWidth / gl.drawingBufferHeight;
     if (aspectRatio < 1)
