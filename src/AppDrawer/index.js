@@ -45,8 +45,6 @@ export default function AppDrawer(props) {
         vorticity,
         splatRadius,
         shadingEnabled,
-        colorEnabled,
-        animationPaused,
         bloomEnabled,
         bloomIntensity,
         bloomThreshold,
@@ -234,36 +232,6 @@ export default function AppDrawer(props) {
                                         />
                                     }
                                     label="Shading"
-                                />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={colorEnabled}
-                                            onChange={
-                                                (event) => onSettingChange(
-                                                    "colorEnabled",
-                                                    event.target.checked
-                                                )
-                                            }
-                                            name="colorful"
-                                        />
-                                    }
-                                    label="Colorful"
-                                />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={animationPaused}
-                                            onChange={
-                                                (event) => onSettingChange(
-                                                    "animationPaused",
-                                                    event.target.checked
-                                                )
-                                            }
-                                            name="paused"
-                                        />
-                                    }
-                                    label="Paused"
                                 />
                             </FormControl>
                         </FormControl>
