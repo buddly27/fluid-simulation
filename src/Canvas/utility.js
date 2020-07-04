@@ -170,14 +170,6 @@ export const scaleByPixelRatio = (input) => {
 };
 
 
-export const wrap = (value, min, max) => {
-    let range = max - min;
-    if (range === 0)
-        return min;
-
-    return (value - min) % range + min;
-};
-
 export const generateColor = () => {
     let color = HSVtoRGB(Math.random(), 1.0, 1.0);
     color.red *= 0.15;
