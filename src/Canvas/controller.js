@@ -52,8 +52,12 @@ export class Pointer {
             y: this._position.y - previousPosition.y,
         };
 
-        if (ratio < 1) { this._delta.x *= ratio; }
-        if (ratio > 1) { this._delta.y /= ratio; }
+        if (ratio < 1) {
+            this._delta.x *= ratio;
+        }
+        if (ratio > 1) {
+            this._delta.y /= ratio;
+        }
     }
 
     setUp() {
@@ -76,7 +80,10 @@ export class Graph extends utility.ContextMixin {
         this._buffer = this.initializeBuffers();
 
         // Initialize dithering texture.
-        this._ditheringTexture = new buffer.Texture(gl)
+        this._ditheringTexture = new buffer.Texture(gl);
+
+        // Create blit function closure.
+        this.blit = this._createBlitClosure();
     }
 
     initializePrograms() {
@@ -159,6 +166,34 @@ export class Graph extends utility.ContextMixin {
         }
 
         return buffers;
+    }
+
+    _createBlitClosure() {
+        return (() => {
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.gl.createBuffer());
+            this.gl.bufferData(
+                this.gl.ARRAY_BUFFER,
+                new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]),
+                this.gl.STATIC_DRAW
+            );
+
+            this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.gl.createBuffer());
+            this.gl.bufferData(
+                this.gl.ELEMENT_ARRAY_BUFFER,
+                new Uint16Array([0, 1, 2, 0, 2, 3]),
+                this.gl.STATIC_DRAW
+            );
+
+            this.gl.vertexAttribPointer(0, 2, this.gl.FLOAT, false, 0, 0);
+            this.gl.enableVertexAttribArray(0);
+
+            return (destination) => {
+                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, destination);
+                this.gl.drawElements(
+                    this.gl.TRIANGLES, 6, this.gl.UNSIGNED_SHORT, 0
+                );
+            }
+        })();
     }
 
     _createResizableBuffer(target, size, channels, texType, filtering) {
@@ -410,27 +445,5 @@ export class Graph extends utility.ContextMixin {
             this._program.blur.texture = this._buffer.sunraysTemp.attach(0);
             this.blit(this._buffer.sunrays.object);
         }
-    }
-
-    blit(destination) {
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.gl.createBuffer());
-        this.gl.bufferData(
-            this.gl.ARRAY_BUFFER,
-            new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]),
-            this.gl.STATIC_DRAW
-        );
-
-        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.gl.createBuffer());
-        this.gl.bufferData(
-            this.gl.ELEMENT_ARRAY_BUFFER,
-            new Uint16Array([0, 1, 2, 0, 2, 3]),
-            this.gl.STATIC_DRAW
-        );
-
-        this.gl.vertexAttribPointer(0, 2, this.gl.FLOAT, false, 0, 0);
-        this.gl.enableVertexAttribArray(0);
-
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, destination);
-        this.gl.drawElements(this.gl.TRIANGLES, 6, this.gl.UNSIGNED_SHORT, 0);
     }
 }
