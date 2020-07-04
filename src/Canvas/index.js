@@ -86,8 +86,6 @@ export default function Canvas(props) {
             graph.resize();
         }
 
-        const deltaTime = Math.min(timestamp / 1000, 0.016666);
-
         if (pointer.isDown() && pointer.isMoving()) {
             const delta = pointer.delta;
             delta.x *= props.splatForce || 6000;
@@ -98,6 +96,7 @@ export default function Canvas(props) {
         }
 
         if (!props.animationPaused) {
+            const deltaTime = Math.min(timestamp / 1000, 0.016666);
             graph.processDelta(deltaTime);
         }
 
