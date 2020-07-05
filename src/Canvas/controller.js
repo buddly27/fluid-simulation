@@ -1,7 +1,6 @@
 import * as utility from "./utility.js"
 import * as buffer from "./buffer.js"
 import * as program from "./program.js"
-import {DoubleFrame} from "./buffer";
 
 
 export class Pointer {
@@ -197,7 +196,7 @@ export class Graph extends utility.ContextMixin {
     }
 
     _createResizableBuffer(target, size, channels, texType, filtering) {
-        const frame = new DoubleFrame(this.gl, size, channels, texType, filtering);
+        const frame = new buffer.DoubleFrame(this.gl, size, channels, texType, filtering);
         if (target !== null) {
             this._program.copy.bind();
             this._program.texture = target.buffer1.attach(0);
